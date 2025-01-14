@@ -182,3 +182,5 @@ def user_page():
 
         if st.button("제출"):
             st.success("피드백이 제출되었습니다. 감사합니다!")
+
+# commit 지수 -> 성은
