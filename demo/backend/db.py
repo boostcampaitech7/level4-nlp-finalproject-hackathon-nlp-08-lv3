@@ -8,9 +8,9 @@ def get_connection():
 
 def init_db():
     """
-    DB 테이블 구조:
+    DB 테이블 구조 (수정 후):
     1) users: (id, username, name, password, role, created_at)
-    2) feedback_questions: (id, question_text, question_type, options, created_at)
+    2) feedback_questions: (id, keyword, question_text, question_type, options, created_at)
     3) feedback_results: (id, question_id, from_username, to_username, answer_content, created_at)
     """
     conn = get_connection()
@@ -32,8 +32,9 @@ def init_db():
     cur.execute('''
     CREATE TABLE IF NOT EXISTS feedback_questions (
         id INTEGER PRIMARY KEY,
+        keyword TEXT,
         question_text TEXT NOT NULL,
-        question_type TEXT NOT NULL,   -- single_choice, multi_choice, short_answer
+        question_type TEXT NOT NULL,
         options TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -56,17 +57,14 @@ def init_db():
 
 def seed_data():
     """
-    최초 실행 시 예시 데이터를 삽입.
-    (이미 같은 id가 있다면 에러가 날 수 있으니, 개발/테스트 용으로 사용)
+    최초 실행 시 예시 데이터 (이미 같은 id가 있다면 에러 날 수 있음)
     """
     conn = get_connection()
     cur = conn.cursor()
 
     # -----------------------------
-    # 1) users 테이블 예시 데이터
+    # 1) users
     # -----------------------------
-    # id, username, name, password, role, created_at
-
     cur.execute("SELECT COUNT(*) FROM users")
     user_count = cur.fetchone()[0]
     if user_count == 0:
@@ -83,33 +81,26 @@ def seed_data():
             """, row)
 
     # -----------------------------
-    # 2) feedback_questions 테이블 예시 데이터
+    # 2) feedback_questions
     # -----------------------------
-    # id,question_text,question_type,options,created_at
     cur.execute("SELECT COUNT(*) FROM feedback_questions")
     q_count = cur.fetchone()[0]
     if q_count == 0:
         questions_data = [
-            (1, "팀원과의 협업이 원활했나요?", "single_choice", "매우 그렇다, 그렇다, 아니다", "2025-01-14 08:46:08"),
-            (2, "다른 팀원이 도움이 필요한 경우 적극적으로 협조했나요?", "single_choice", "항상 그렇다, 가끔 그렇다, 거의 없다, 전혀 없다", "2025-01-14 08:46:08"),
-            (3, "프로젝트 진행 중 어려웠던 점을 자유롭게 작성해주세요.", "short_answer", None, "2025-01-14 08:46:08"),
-            (4, "정주현 캠퍼는 잘생겼나요?", "multi_choice", "매우 매우 그렇다, 매우 그렇다, 그렇다, 조금 그렇다", "2025-01-14 08:46:08"),
+            (1, "협업", "팀원과의 협업이 원활했나요?", "single_choice", "매우 그렇다, 그렇다, 아니다", "2025-01-14 08:46:08"),
+            (2, "도움", "다른 팀원이 도움이 필요한 경우 적극적으로 협조했나요?", "single_choice", "항상 그렇다, 가끔 그렇다, 거의 없다, 전혀 없다", "2025-01-14 08:46:08"),
+            (3, "어려움", "프로젝트 진행 중 어려웠던 점을 자유롭게 작성해주세요.", "short_answer", None, "2025-01-14 08:46:08"),
+            (4, "잘생김", "정주현 캠퍼는 잘생겼나요?", "multi_choice", "매우 매우 그렇다, 매우 그렇다, 그렇다, 조금 그렇다", "2025-01-14 08:46:08"),
         ]
         for row in questions_data:
-            # (id, question_text, question_type, options, created_at)
-            if len(row) == 5:
-                # 4개 + created_at
-                cur.execute("""
-                    INSERT INTO feedback_questions (id, question_text, question_type, options, created_at)
-                    VALUES (?, ?, ?, ?, ?)
-                """, row)
-            else:
-                pass
+            cur.execute("""
+                INSERT INTO feedback_questions (id, keyword, question_text, question_type, options, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, row)
 
     # -----------------------------
-    # 3) feedback_results 테이블 예시 데이터
+    # 3) feedback_results
     # -----------------------------
-
     cur.execute("SELECT COUNT(*) FROM feedback_results")
     f_count = cur.fetchone()[0]
     if f_count == 0:

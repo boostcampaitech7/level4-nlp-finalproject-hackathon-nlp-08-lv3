@@ -10,9 +10,7 @@ seed_data()
 def index():
     return "Flask backend - from/to username version"
 
-# ---------------------------------------------
 # 1) 로그인
-# ---------------------------------------------
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.json
@@ -31,9 +29,7 @@ def login():
     else:
         return jsonify({"success": False, "message": "Invalid credentials"}), 401
 
-# ---------------------------------------------
 # 2) 계정 생성
-# ---------------------------------------------
 @app.route("/api/create_account", methods=["POST"])
 def create_account():
     data = request.json
@@ -58,9 +54,7 @@ def create_account():
 
     return jsonify({"success": True, "message": "계정 생성 완료"})
 
-# ---------------------------------------------
 # 3) 사용자 목록
-# ---------------------------------------------
 @app.route("/api/users", methods=["GET"])
 def get_users():
     conn = get_connection()
@@ -79,30 +73,11 @@ def get_users():
         })
     return jsonify({"success": True, "users": users})
 
-# ---------------------------------------------
-# 4) 질문 조회/등록
-# ---------------------------------------------
-@app.route("/api/questions", methods=["GET"])
-def get_questions():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id, question_text, question_type, options FROM feedback_questions ORDER BY id ASC")
-    rows = cur.fetchall()
-    conn.close()
-
-    questions = []
-    for row in rows:
-        questions.append({
-            "id": row[0],
-            "question_text": row[1],
-            "question_type": row[2],
-            "options": row[3]
-        })
-    return jsonify({"success": True, "questions": questions})
-
-@app.route("/api/questions", methods=["POST"])
-def create_question():
+# 질문 CRUD
+@app.route("/api/questions/<int:question_id>", methods=["PUT"])
+def update_question(question_id):
     data = request.json
+    keyword = data.get("keyword")
     question_text = data.get("question_text")
     question_type = data.get("question_type")
     options = data.get("options")
@@ -110,23 +85,69 @@ def create_question():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO feedback_questions (question_text, question_type, options)
-        VALUES (?, ?, ?)
-    """, (question_text, question_type, options))
+        UPDATE feedback_questions
+           SET keyword = ?,
+               question_text = ?,
+               question_type = ?,
+               options = ?
+         WHERE id = ?
+    """, (keyword, question_text, question_type, options, question_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"success": True, "message": "질문이 수정되었습니다."})
+
+@app.route("/api/questions/<int:question_id>", methods=["DELETE"])
+def delete_question(question_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM feedback_questions WHERE id=?", (question_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"success": True, "message": "질문이 삭제되었습니다."})
+
+@app.route("/api/questions", methods=["GET"])
+def get_questions():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, keyword, question_text, question_type, options FROM feedback_questions ORDER BY id ASC")
+    rows = cur.fetchall()
+    conn.close()
+
+    questions = []
+    for row in rows:
+        questions.append({
+            "id": row[0],
+            "keyword": row[1],
+            "question_text": row[2],
+            "question_type": row[3],
+            "options": row[4]
+        })
+    return jsonify({"success": True, "questions": questions})
+
+@app.route("/api/questions", methods=["POST"])
+def create_question():
+    data = request.json
+    keyword = data.get("keyword")
+    question_text = data.get("question_text")
+    question_type = data.get("question_type")
+    options = data.get("options")
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO feedback_questions (keyword, question_text, question_type, options)
+        VALUES (?, ?, ?, ?)
+    """, (keyword, question_text, question_type, options))
     conn.commit()
     conn.close()
 
     return jsonify({"success": True, "message": "새로운 질문이 등록되었습니다."})
 
-# ---------------------------------------------
-# 5) 관리자: 특정 사용자(= to_username) 피드백 조회
-# ---------------------------------------------
+# 관리자: 특정 사용자(= to_username) 피드백 조회
 @app.route("/api/feedback/user", methods=["GET"])
 def get_feedback_for_user():
-    """
-    GET /api/feedback/user?username=xxx
-    -> DB: feedback_results.to_username=xxx
-    """
     to_username = request.args.get("username")
     if not to_username:
         return jsonify({"success": False, "message": "username is required"}), 400
@@ -156,14 +177,9 @@ def get_feedback_for_user():
         })
     return jsonify({"success": True, "feedbacks": feedbacks})
 
-# ---------------------------------------------
-# 6) 사용자: 피드백 작성, 내가 받은 피드백 조회
-# ---------------------------------------------
+# 사용자: 피드백 작성, 내가 받은 피드백 조회
 @app.route("/api/feedback", methods=["POST"])
 def submit_feedback():
-    """
-    question_id, from_username, to_username, answer_content
-    """
     data = request.json
     question_id = data.get("question_id")
     from_username = data.get("from_username")
@@ -183,10 +199,6 @@ def submit_feedback():
 
 @app.route("/api/feedback/my", methods=["GET"])
 def get_my_feedback():
-    """
-    GET /api/feedback/my?username=xxx
-    -> DB: to_username=xxx
-    """
     to_username = request.args.get("username")
     if not to_username:
         return jsonify({"success": False, "message": "username is required"}), 400
@@ -215,7 +227,6 @@ def get_my_feedback():
             "created_at": created
         })
     return jsonify({"success": True, "feedbacks": feedbacks})
-
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
