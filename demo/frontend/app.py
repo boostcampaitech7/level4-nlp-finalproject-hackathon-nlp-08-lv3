@@ -43,7 +43,7 @@ def main():
     elif st.session_state.page == "question_add":
         question_add_page()
     elif st.session_state.page == "question_edit":
-        question_edit_page()
+        question_edit_page(st.session_state.edit_question_id)
     else:
         st.session_state.page = "login"
         st.stop()
@@ -165,52 +165,71 @@ def admin_page():
         return
 
     if st.session_state.admin_tab == "questions":
-        admin_manage_questions()
+        # 여기서 탭 2개(편집 / 미리보기)로 구성
+        tab_manage, tab_preview = st.tabs(["편집", "미리보기"])
+        with tab_manage:
+            admin_manage_questions()
+        with tab_preview:
+            preview_questions()
+
     elif st.session_state.admin_tab == "feedback":
         admin_view_feedback()
 
-def admin_manage_questions():
-    st.write("## 동료 피드백 질문 관리")
+def delete_question(question_id):
+    if st.button("삭제 확인", key=f"confirm_delete_{question_id}"):
+        resp = requests.delete(f"{API_BASE_URL}/questions/{question_id}")
+        if resp.status_code == 200 and resp.json().get("success"):
+            st.success("질문이 성공적으로 삭제되었습니다.")
+            st.rerun()
+        else:
+            st.error("질문 삭제 실패")
 
-    resp = requests.get(f"{API_BASE_URL}/questions")
-    if resp.status_code == 200 and resp.json().get("success"):
-        questions = resp.json()["questions"]
-        type_map = {
-            "single_choice": "객관식(단일)",
-            "multi_choice": "객관식(복수)",
-            "short_answer": "주관식"
-        }
-        rows = []
-        for q in questions:
-            q_id = q["id"]
-            q_kw = q["keyword"] or ""
-            q_txt = q["question_text"]
-            q_type_kor = type_map.get(q["question_type"], q["question_type"])
-            q_opts = q["options"] or ""
-            rows.append([q_id, q_kw, q_txt, q_type_kor, q_opts])
+def preview_questions():
+    st.write("## 미리보기: 동료 피드백 작성 화면")
 
-        df = pd.DataFrame(rows, columns=["ID", "keyword", "질문", "유형", "옵션"])
-        st.table(df)
-
-        col1, col2, col3 = st.columns([6,1,1])
-        with col2:
-            if st.button("추가", key="ques_add"):
-                st.session_state.page = "question_add"
-                st.rerun()
-        with col3:
-            if st.button("수정", key="ques_edit"):
-                st.session_state.page = "question_edit"
-                st.rerun()
+    # (1) 질문 목록 가져오기
+    r_q = requests.get(f"{API_BASE_URL}/questions")
+    if r_q.status_code == 200 and r_q.json().get("success"):
+        questions = r_q.json()["questions"]
     else:
-        st.error("질문 목록 조회 실패")
+        st.error("질문 목록 불러오기 실패 (미리보기)")
+        return
+
+    # (2) 질문들 출력 (제출 X)
+    for q in questions:
+        q_id = q["id"]
+        q_text = q["question_text"]
+        q_type = q["question_type"]
+        q_opts = q["options"] or ""
+
+        st.write(f"**Q{q_id}**: {q_text}")
+
+        # 질문 유형에 따라 UI만 보여준다 (값을 받아도 저장X)
+        key_prefix = f"preview_{q_id}"
+        if q_type == "single_choice":
+            opts = [opt.strip() for opt in q_opts.split(",")] if q_opts else []
+            st.radio("(객관식 단일) 선택", opts, key=f"{key_prefix}_radio")
+        elif q_type == "multi_choice":
+            opts = [opt.strip() for opt in q_opts.split(",")] if q_opts else []
+            st.multiselect("(객관식 복수) 선택", opts, key=f"{key_prefix}_multi")
+        elif q_type == "long_answer":
+            st.text_area("(장문형) 답변 입력 예시", key=f"{key_prefix}_text")
+
+    # (3) "제출" 버튼은 없음 (단순 미리보기이므로)
+    st.info("이 화면은 미리보기 전용입니다. 실제 제출 기능은 없습니다.")
 
 def question_add_page():
     st.title("질문 추가")
 
     new_kw = st.text_input("keyword")
     new_text = st.text_input("질문")
-    new_type = st.selectbox("질문 유형", ["single_choice","multi_choice","short_answer"])
-    new_opts = st.text_input("옵션 (쉼표로 구분)")
+    new_type = st.selectbox("질문 유형", ["single_choice","multi_choice","long_answer"])
+
+    # 장문형일 경우 옵션 미표시, 그 외(객관식)일 때만 표시
+    if new_type == "long_answer":
+        new_opts = ""
+    else:
+        new_opts = st.text_input("옵션 (쉼표로 구분)")
 
     if st.button("추가"):
         payload = {
@@ -231,57 +250,134 @@ def question_add_page():
         st.session_state.page = "login"
         st.rerun()
 
-def question_edit_page():
-    st.title("질문 수정")
+def admin_manage_questions():
+    st.write("## 동료 피드백 질문 관리")
 
-    q_id = st.number_input("수정/삭제할 질문 ID", min_value=1, step=1)
+    resp = requests.get(f"{API_BASE_URL}/questions")
+    if resp.status_code == 200 and resp.json().get("success"):
+        questions = resp.json()["questions"]
 
-    r = requests.get(f"{API_BASE_URL}/questions")
-    if r.status_code == 200 and r.json().get("success"):
-        all_q = r.json()["questions"]
-        target_q = next((item for item in all_q if item["id"] == q_id), None)
-        if target_q:
-            edit_keyword = st.text_input("keyword", value=target_q["keyword"] or "")
-            edit_text = st.text_input("질문", value=target_q["question_text"])
-            old_type = target_q["question_type"]
-            edit_type = st.selectbox("질문 유형", ["single_choice","multi_choice","short_answer"],
-                                     index=["single_choice","multi_choice","short_answer"].index(old_type)
-                                     if old_type in ["single_choice","multi_choice","short_answer"] else 0)
-            edit_opts = st.text_input("옵션", value=target_q["options"] or "")
+        # 질문 유형을 한글 라벨로 매핑
+        type_map = {
+            "single_choice": "객관식(단일)",
+            "multi_choice": "객관식(복수)",
+            "long_answer": "주관식"
+        }
 
-            c1, c2, c3 = st.columns([1,1,8])
-            with c1:
-                if st.button("수정", key="edit_done"):
-                    payload = {
-                        "keyword": edit_keyword,
-                        "question_text": edit_text,
-                        "question_type": edit_type,
-                        "options": edit_opts if edit_opts.strip() else None
-                    }
-                    up = requests.put(f"{API_BASE_URL}/questions/{q_id}", json=payload)
-                    if up.status_code == 200 and up.json().get("success"):
-                        st.success("질문이 수정되었습니다.")
-                        st.session_state.page = "login"
-                        st.rerun()
+        for q in questions:
+            q_id = q["id"]
+            q_kw = q["keyword"] or ""
+            q_txt = q["question_text"]
+            q_type_db = q["question_type"]  # "single_choice", "multi_choice", "long_answer" 중 하나
+            q_type_kor = type_map.get(q_type_db, q_type_db)
+
+            # 만약 주관식(= long_answer)이면 q["options"]는 무시 or 숨김
+            if q_type_db == "long_answer":
+                q_opts = None  # 장문형이면 옵션 없음
+            else:
+                q_opts = q["options"] or ""  # 객관식(단일/복수)이면 기존처럼 사용
+
+            # 3컬럼 레이아웃
+            col_info, col_edit, col_delete = st.columns([6, 0.5, 0.5])
+            
+            with col_info:
+                # 질문 정보 출력
+                st.write(f"**질문 ID {q_id}**")
+                st.write(f"**Keyword**: {q_kw}")
+                st.write(f"**질문 내용**: {q_txt}")
+                st.write(f"**유형**: {q_type_kor}")
+
+                # 옵션이 있는 경우에만 표시
+                if q_opts:
+                    st.write(f"**옵션**: {q_opts}")
+
+            with col_edit:
+                if st.button("수정", key=f"edit_{q_id}"):
+                    st.session_state.page = "question_edit"
+                    st.session_state.edit_question_id = q_id
+                    st.rerun()
+
+            with col_delete:
+                if st.button("삭제", key=f"delete_{q_id}"):
+                    resp_del = requests.delete(f"{API_BASE_URL}/questions/{q_id}")
+                    if resp_del.status_code == 200 and resp_del.json().get("success"):
+                        st.success("질문이 성공적으로 삭제되었습니다.")
                     else:
-                        st.error("질문 수정 API 실패")
-            with c2:
-                if st.button("삭제", key="edit_delete"):
-                    dl = requests.delete(f"{API_BASE_URL}/questions/{q_id}")
-                    if dl.status_code == 200 and dl.json().get("success"):
-                        st.success("질문이 삭제되었습니다.")
-                        st.session_state.page = "login"
-                        st.rerun()
-                    else:
-                        st.error("질문 삭제 API 실패")
-        else:
-            st.info("해당 ID의 질문을 찾을 수 없습니다.")
+                        st.error("질문 삭제 실패")
+                    st.rerun()
+
+            st.divider()
+
+        if st.button("질문 추가", key="add_question_button"):
+            st.session_state.page = "question_add"
+            st.rerun()
     else:
         st.error("질문 목록 조회 실패")
 
-    if st.button("취소"):
-        st.session_state.page = "login"
-        st.rerun()
+
+
+def do_delete_question(question_id):
+    """
+    실제로 DELETE API를 호출하고, 성공/실패를 처리한 뒤 confirm_delete_id 초기화
+    """
+    resp = requests.delete(f"{API_BASE_URL}/questions/{question_id}")
+    if resp.status_code == 200 and resp.json().get("success"):
+        st.success("질문이 성공적으로 삭제되었습니다.")
+    else:
+        st.error("질문 삭제 실패")
+
+    # confirm_delete_id 초기화 후, 화면 리프레시
+    st.session_state.confirm_delete_id = None
+    st.experimental_rerun()
+
+
+def question_edit_page(question_id):
+    st.title("질문 수정")
+
+    resp = requests.get(f"{API_BASE_URL}/questions/{question_id}")
+    if resp.status_code == 200 and resp.json().get("success"):
+        question = resp.json()["question"]
+
+        edit_keyword = st.text_input("Keyword", value=question["keyword"] or "")
+        edit_text = st.text_input("질문", value=question["question_text"])
+        old_type = question["question_type"]
+
+        edit_type = st.selectbox(
+            "질문 유형",
+            ["single_choice", "multi_choice", "long_answer"],
+            index=["single_choice", "multi_choice", "long_answer"].index(old_type)
+            if old_type in ["single_choice", "multi_choice", "long_answer"] else 0
+        )
+
+        # 장문형이면 옵션 입력 란 없이, 변수에 빈 문자열 할당
+        if edit_type == "long_answer":
+            edit_opts = ""
+        else:
+            edit_opts = st.text_input("옵션", value=question["options"] or "")
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("수정 완료"):
+                payload = {
+                    "keyword": edit_keyword,
+                    "question_text": edit_text,
+                    "question_type": edit_type,
+                    "options": edit_opts if edit_opts.strip() else None
+                }
+                update_resp = requests.put(f"{API_BASE_URL}/questions/{question_id}", json=payload)
+                if update_resp.status_code == 200 and update_resp.json().get("success"):
+                    st.success("질문이 성공적으로 수정되었습니다.")
+                    st.session_state.page = "login"
+                    st.rerun()
+                else:
+                    st.error("질문 수정 실패")
+        with col2:
+            if st.button("취소"):
+                st.session_state.page = "login"
+                st.rerun()
+    else:
+        st.error("질문 정보를 불러올 수 없습니다.")
+
 
 def admin_view_feedback():
     st.write("## 동료 피드백 결과 조회")
@@ -386,9 +482,9 @@ def user_write_feedback():
             opts = [opt.strip() for opt in q_opts.split(",")] if q_opts else []
             chosen = st.multiselect("선택(복수)", opts, key=f"{key_prefix}_multi")
             answers[q_id] = ", ".join(chosen)
-        else:
-            short_ans = st.text_input("답변 입력", key=f"{key_prefix}_text")
-            answers[q_id] = short_ans
+        elif q_type == "long_answer":
+            long_ans = st.text_area("답변 입력 (장문형)", key=f"{key_prefix}_text")
+            answers[q_id] = long_ans
 
     if st.button("제출"):
         from_username = st.session_state.username
