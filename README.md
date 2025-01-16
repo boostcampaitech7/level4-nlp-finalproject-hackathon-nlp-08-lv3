@@ -4,4 +4,4 @@
 1. 터미널 1: cd backend -> `python3 main.py`
 2. 터미널 2: cd frontend -> `streamlit run app.py`
 
-우리팀화이팅
+우리팀화이팅!
