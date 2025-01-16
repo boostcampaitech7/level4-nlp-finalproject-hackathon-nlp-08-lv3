@@ -44,6 +44,8 @@ def main():
         question_add_page()
     elif st.session_state.page == "question_edit":
         question_edit_page(st.session_state.edit_question_id)
+    elif st.session_state.page == "question_add_from_pdf":
+        question_add_from_pdf_page()
     else:
         st.session_state.page = "login"
         st.stop()
@@ -250,6 +252,31 @@ def question_add_page():
         st.session_state.page = "login"
         st.rerun()
 
+def question_add_from_pdf_page():
+    st.title("파일로 질문 추가")
+
+    uploaded_file = st.file_uploader("파일 업로드", type=["pdf", "jpeg", "png", "bmp", "tiff", "heic", "docx", "xlsx", "pptx"])
+
+    if uploaded_file is not None:
+        if uploaded_file.size > 50 * 1024 * 1024:
+            st.error("파일 크기는 50MB를 초과할 수 없습니다.")
+        else:
+            # 파일을 서버로 전송
+            files = {
+                "file": (uploaded_file.name, uploaded_file, uploaded_file.type)
+            }
+            response = requests.post(f"{API_BASE_URL}/upload_file", files=files)
+
+            
+            if response.status_code == 200 and response.json().get("success"):
+                st.success("파일에서 질문을 성공적으로 추가했습니다.")
+            else:
+                st.error("파일 업로드 실패")
+
+    if st.button("취소"):
+        st.session_state.page = "login"
+        st.rerun()
+
 def admin_manage_questions():
     st.write("## 동료 피드백 질문 관리")
 
@@ -311,10 +338,12 @@ def admin_manage_questions():
         if st.button("질문 추가", key="add_question_button"):
             st.session_state.page = "question_add"
             st.rerun()
+        
+        if st.button("PDF로 질문 추가", key="add_question_from_pdf_button"):
+            st.session_state.page = "question_add_from_pdf"
+            st.rerun()
     else:
         st.error("질문 목록 조회 실패")
-
-
 
 def do_delete_question(question_id):
     """
