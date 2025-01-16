@@ -228,5 +228,29 @@ def get_my_feedback():
         })
     return jsonify({"success": True, "feedbacks": feedbacks})
 
+@app.route("/api/questions/<int:question_id>", methods=["GET"])
+def get_question_by_id(question_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, keyword, question_text, question_type, options
+          FROM feedback_questions
+         WHERE id=?
+    """, (question_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if row:
+        question_data = {
+            "id": row[0],
+            "keyword": row[1],
+            "question_text": row[2],
+            "question_type": row[3],
+            "options": row[4]
+        }
+        return jsonify({"success": True, "question": question_data}), 200
+    else:
+        return jsonify({"success": False, "message": f"Question ID={question_id} not found"}), 404
+    
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
