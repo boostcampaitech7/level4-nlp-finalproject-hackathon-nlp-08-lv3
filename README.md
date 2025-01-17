@@ -1,7 +1,9 @@
-### 실행방법~!
+### 서버 연동 자동화
+"demo" 디렉토리로 cd 로 이동한 후에 사용하시면 됩니다
+`chmod +x run_demo.sh` 맨 처음에 권한부여하는것 **한번만** 하면됨
+이후 demo 디렉토리에서
+`./run_demo.sh` 로 실행시 tmux 로 터미널 두개 동시에 켜지면서 서버 실행
 
-터미널 2개를 킨 뒤,
-1. 터미널 1: cd backend -> `python3 main.py`
-2. 터미널 2: cd frontend -> `streamlit run app.py`
-
-우리팀화이팅
+**단점**
+서버 닫을때 그냥 휴지통 버튼으로 나가면 나중에 `sudo kill -9 <pid>` 로 직접 꺼줘야함
+귀찮을테니, 서버 닫을때는 항상 ctrl + c 누르고 exit 해서 tmux 한개씩 나가세용
