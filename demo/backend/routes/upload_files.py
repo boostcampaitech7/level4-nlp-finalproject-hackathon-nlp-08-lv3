@@ -14,27 +14,23 @@ def allowed_file(filename):
 @upload_files_bp.route("/api/upload_file", methods=["POST"])
 def upload_file():
     if 'file' not in request.files:
-        print("No file part in the request")
         return jsonify({"success": False, "message": "No file part"}), 400
 
     file = request.files['file']
     if file.filename == '':
-        print("No selected file")
         return jsonify({"success": False, "message": "No selected file"}), 400
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        print(f"Saving file: {file_path}")
 
         try:
+            if not os.path.exists(UPLOAD_FOLDER):
+                os.makedirs(UPLOAD_FOLDER)
             file.save(file_path)
             save_file_metadata(filename, file_path)
-            print(f"File {filename} saved successfully")
             return jsonify({"success": True, "message": "파일이 성공적으로 업로드되었습니다."}), 200
         except Exception as e:
-            print(f"Error during file save: {e}")
-            return jsonify({"success": False, "message": "파일 저장 중 오류가 발생했습니다."}), 500
+            return jsonify({"success": False, "message": f"파일 저장 중 오류가 발생했습니다: {e}"}), 500
     else:
-        print(f"File {file.filename} is not allowed")
         return jsonify({"success": False, "message": "허용되지 않는 파일 형식입니다."}), 400

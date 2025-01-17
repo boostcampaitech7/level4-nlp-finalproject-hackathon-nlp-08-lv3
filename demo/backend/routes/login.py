@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
-from db import get_connection as get_main_db_connection
+from db import get_connection
 
-login_bp = Blueprint('login', __name__)
+login_bp = Blueprint("login", __name__)
 
 @login_bp.route("/api/login", methods=["POST"])
 def login():
@@ -9,7 +9,7 @@ def login():
     username = data.get("username")
     password = data.get("password")
 
-    conn = get_main_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT id, name, role FROM users WHERE username=? AND password=?", (username, password))
     row = cur.fetchone()

@@ -1,34 +1,39 @@
 import os
 from flask import Flask
-from db import init_db as init_main_db, seed_data
+from db import init_db, seed_data
 from file import init_db as init_file_db
 
-from router.login import login_bp
-from router.create_account import create_bp
-from router.users import users_bp
-from router.questions import questions_bp
-from router.feedbacks import feedbacks_bp
-from router.upload_files import upload_files_bp
+# Blueprint 임포트
+from routes.login import login_bp
+from routes.account import account_bp
+from routes.admin_questions import admin_questions_bp
+from routes.admin_feedback import admin_feedback_bp
+from routes.user_feedback_write import user_feedback_write_bp
+from routes.user_feedback_result import user_feedback_result_bp
+from routes.upload_files import upload_files_bp
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-init_main_db()
+# DB 초기화
+init_db()
 seed_data()
 init_file_db()
-
-app.register_blueprint(login_bp)
-app.register_blueprint(create_bp)
-app.register_blueprint(users_bp)
-app.register_blueprint(questions_bp)
-app.register_blueprint(feedbacks_bp)
-app.register_blueprint(upload_files_bp)
 
 @app.route("/")
 def index():
     return "Flask backend - from/to username version"
+
+# 기능별 Blueprint 등록
+app.register_blueprint(login_bp)
+app.register_blueprint(account_bp)
+app.register_blueprint(admin_questions_bp)
+app.register_blueprint(admin_feedback_bp)
+app.register_blueprint(user_feedback_write_bp)
+app.register_blueprint(user_feedback_result_bp)
+app.register_blueprint(upload_files_bp)
 
 if __name__ == "__main__":
     if not os.path.exists(UPLOAD_FOLDER):
