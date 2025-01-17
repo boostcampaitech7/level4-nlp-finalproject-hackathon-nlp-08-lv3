@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
-from db import get_connection as get_main_db_connection
+from db import get_connection
 
-questions_bp = Blueprint('questions', __name__)
+admin_questions_bp = Blueprint("admin_questions", __name__)
 
-@questions_bp.route("/api/questions/<int:question_id>", methods=["PUT"])
+# 질문 수정
+@admin_questions_bp.route("/api/questions/<int:question_id>", methods=["PUT"])
 def update_question(question_id):
     data = request.json
     keyword = data.get("keyword")
@@ -11,7 +12,7 @@ def update_question(question_id):
     question_type = data.get("question_type")
     options = data.get("options")
 
-    conn = get_main_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         UPDATE feedback_questions
@@ -26,9 +27,10 @@ def update_question(question_id):
 
     return jsonify({"success": True, "message": "질문이 수정되었습니다."})
 
-@questions_bp.route("/api/questions/<int:question_id>", methods=["DELETE"])
+# 질문 삭제
+@admin_questions_bp.route("/api/questions/<int:question_id>", methods=["DELETE"])
 def delete_question(question_id):
-    conn = get_main_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM feedback_questions WHERE id=?", (question_id,))
     conn.commit()
@@ -36,9 +38,10 @@ def delete_question(question_id):
 
     return jsonify({"success": True, "message": "질문이 삭제되었습니다."})
 
-@questions_bp.route("/api/questions", methods=["GET"])
+# 질문 목록 조회
+@admin_questions_bp.route("/api/questions", methods=["GET"])
 def get_questions():
-    conn = get_main_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT id, keyword, question_text, question_type, options FROM feedback_questions ORDER BY id ASC")
     rows = cur.fetchall()
@@ -55,7 +58,8 @@ def get_questions():
         })
     return jsonify({"success": True, "questions": questions})
 
-@questions_bp.route("/api/questions", methods=["POST"])
+# 질문 생성
+@admin_questions_bp.route("/api/questions", methods=["POST"])
 def create_question():
     data = request.json
     keyword = data.get("keyword")
@@ -63,7 +67,7 @@ def create_question():
     question_type = data.get("question_type")
     options = data.get("options")
 
-    conn = get_main_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO feedback_questions (keyword, question_text, question_type, options)
@@ -74,9 +78,10 @@ def create_question():
 
     return jsonify({"success": True, "message": "새로운 질문이 등록되었습니다."})
 
-@questions_bp.route("/api/questions/<int:question_id>", methods=["GET"])
+# 질문 단건 조회
+@admin_questions_bp.route("/api/questions/<int:question_id>", methods=["GET"])
 def get_question_by_id(question_id):
-    conn = get_main_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         SELECT id, keyword, question_text, question_type, options
