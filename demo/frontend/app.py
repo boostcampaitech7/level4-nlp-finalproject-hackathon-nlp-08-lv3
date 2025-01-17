@@ -348,13 +348,6 @@ def user_page():
 def user_write_feedback():
     st.write("## 동료 피드백 작성")
 
-    r_q = requests.get(f"{API_BASE_URL}/questions")
-    if r_q.status_code == 200 and r_q.json().get("success"):
-        questions = r_q.json()["questions"]
-    else:
-        st.error("질문 목록 불러오기 실패")
-        return
-
     r_u = requests.get(f"{API_BASE_URL}/users")
     if r_u.status_code == 200 and r_u.json().get("success"):
         all_users = r_u.json()["users"]
@@ -369,6 +362,27 @@ def user_write_feedback():
         st.error("사용자 목록 조회 실패")
         return
 
+    # 이미 작성된 피드백인지 확인
+    check_resp = requests.get(f"{API_BASE_URL}/feedback/check", params={
+        "from_username": st.session_state.username,
+        "to_username": to_username
+    })
+    if check_resp.status_code == 200 and check_resp.json().get("success"):
+        if check_resp.json().get("already_submitted"):
+            st.warning("이미 피드백을 작성한 사용자입니다.")
+            return
+    else:
+        st.error("피드백 확인 API 오류")
+        return
+    
+    # 질문 출력 및 답변 작성
+    r_q = requests.get(f"{API_BASE_URL}/questions")
+    if r_q.status_code == 200 and r_q.json().get("success"):
+        questions = r_q.json()["questions"]
+    else:
+        st.error("질문 목록 불러오기 실패")
+        return
+    
     answers = {}
     for q in questions:
         q_id = q["id"]
@@ -392,18 +406,29 @@ def user_write_feedback():
 
     if st.button("제출"):
         from_username = st.session_state.username
-        for question_id, ans in answers.items():
-            payload = {
+
+        # 작성하지 않은 항목 확인
+        unanswered_questions = [q_id for q_id, ans in answers.items() if not ans]
+        if unanswered_questions:
+            st.error(f"작성하지 않은 항목이 있습니다: {', '.join([str(q) for q in unanswered_questions])}")
+            return
+
+        # 모든 답변을 한 번에 서버로 전송
+        payload = [
+            {
                 "question_id": question_id,
                 "from_username": from_username,
                 "to_username": to_username,
                 "answer_content": ans
             }
-            r_fb = requests.post(f"{API_BASE_URL}/feedback", json=payload)
-            if r_fb.status_code == 200 and r_fb.json()["success"]:
-                st.success(f"Q{question_id} 피드백 제출 완료")
-            else:
-                st.error(f"Q{question_id} 제출 실패")
+            for question_id, ans in answers.items()
+        ]
+
+        response = requests.post(f"{API_BASE_URL}/feedback/bulk", json=payload)
+        if response.status_code == 200 and response.json().get("success"):
+            st.success("피드백 제출 완료!")
+        else:
+            st.error("피드백 제출에 실패했습니다.")
 
 def user_view_my_feedback():
     st.write("## 내가 받은 피드백 결과 조회")
