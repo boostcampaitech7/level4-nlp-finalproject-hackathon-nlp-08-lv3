@@ -31,28 +31,9 @@ def create_account():
 
 # 사용자 목록 조회
 @account_bp.route("/api/users", methods=["GET"])
-
-# def get_users():
-#     conn = get_connection()
-#     cur = conn.cursor()
-#     cur.execute("SELECT id, username, name, role FROM users ORDER BY id ASC")
-#     rows = cur.fetchall()
-#     conn.close()
-
-#     users = []
-#     for r in rows:
-#         users.append({
-#             "id": r[0],
-#             "username": r[1],
-#             "name": r[2],
-#             "role": r[3]
-#         })
-#     return jsonify({"success": True, "users": users})
-
 def get_users():
     conn = get_connection()
     cur = conn.cursor()
-    ### 그룹 수정 시작
     try:
         # LEFT JOIN으로 user_groups 테이블과 연결하여 그룹 정보도 함께 조회
         cur.execute("""
@@ -77,4 +58,3 @@ def get_users():
         return jsonify({"success": False, "message": str(e)}), 500
     finally:
         conn.close()
-    ### 그룹 수정 끝

@@ -26,6 +26,9 @@ from modules.admin_feedback import admin_view_feedback
 from modules.user_feedback_write import user_write_feedback
 from modules.user_feedback_result import user_view_my_feedback
 from modules.upload_files import question_add_from_pdf_page
+### 그룹 수정 시작
+from modules.admin_group_manage import admin_manage_groups
+### 그룹 수정 끝
 
 def main():
     st.set_page_config(page_title="동료 피드백 플랫폼", layout="wide")
@@ -63,6 +66,10 @@ def admin_page():
         st.session_state.admin_tab = "questions"
     if st.sidebar.button("동료 피드백 결과 조회"):
         st.session_state.admin_tab = "feedback"
+### 그룹 수정 시작
+    if st.sidebar.button("그룹 관리"):
+        st.session_state.admin_tab = "groups"
+### 그룹 수정 끝
 
     st.sidebar.markdown("---")
     if st.sidebar.button("로그아웃"):
@@ -77,6 +84,10 @@ def admin_page():
             preview_questions()
     elif st.session_state.admin_tab == "feedback":
         admin_view_feedback()
+### 그룹 수정 시작
+    elif st.session_state.admin_tab == "groups":
+        admin_manage_groups()
+### 그룹 수정 끝
 
 def user_page():
     st.subheader(f"사용자 페이지 - {st.session_state.name}님")
