@@ -52,8 +52,31 @@ def init_db():
     )
     ''')
 
+### 그룹 수정 시작
+    # groups 테이블 생성
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS groups (
+        id INTEGER PRIMARY KEY,
+        group_name TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    # 5) user_groups
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS user_groups (
+        user_id INTEGER NOT NULL,
+        group_id INTEGER NOT NULL,
+        assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, group_id),
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (group_id) REFERENCES groups (id)
+    )
+    ''')
+
     conn.commit()
     conn.close()
+### 그룹 수정 끝
 
 def seed_data():
     """
@@ -110,6 +133,40 @@ def seed_data():
                 INSERT INTO feedback_results (id, question_id, from_username, to_username, answer_content, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, row)
+
+### 그룹 수정 시작
+    # -----------------------------
+    # 4) groups
+    # -----------------------------
+    cur.execute("SELECT COUNT(*) FROM groups")
+    group_count = cur.fetchone()[0]
+    if group_count == 0:
+        groups_data = [
+            (1, "Development Team", "2025-01-14 08:46:08"),
+            (2, "Marketing Team", "2025-01-14 08:46:08"),
+        ]
+        for row in groups_data:
+            cur.execute("""
+                INSERT INTO groups (id, group_name, created_at)
+                VALUES (?, ?, ?)
+            """, row)
+
+    # -----------------------------
+    # 5) user_groups
+    # -----------------------------
+    cur.execute("SELECT COUNT(*) FROM user_groups")
+    user_group_count = cur.fetchone()[0]
+    if user_group_count == 0:
+        user_groups_data = [
+            (2, 1, "2025-01-14 08:46:08"),  # user1 -> Development Team
+            (3, 2, "2025-01-14 08:46:08"),  # user2 -> Marketing Team
+        ]
+        for row in user_groups_data:
+            cur.execute("""
+                INSERT INTO user_groups (user_id, group_id, assigned_at)
+                VALUES (?, ?, ?)
+            """, row)
+### 그룹 수정 끝
 
     conn.commit()
     conn.close()
