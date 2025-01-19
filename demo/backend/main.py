@@ -11,6 +11,8 @@ from routes.admin_feedback import admin_feedback_bp
 from routes.user_feedback_write import user_feedback_write_bp
 from routes.user_feedback_result import user_feedback_result_bp
 from routes.upload_files import upload_files_bp
+from routes.check_feedback import check_feedback_bp
+from routes.submit_feedback_bulk import submit_feedback_bulk_bp
 ### 그룹 수정 시작
 from routes.groups import groups_bp  # 추가
 ### 그룹 수정 끝
@@ -37,6 +39,8 @@ app.register_blueprint(admin_feedback_bp)
 app.register_blueprint(user_feedback_write_bp)
 app.register_blueprint(user_feedback_result_bp)
 app.register_blueprint(upload_files_bp)
+app.register_blueprint(check_feedback_bp)
+app.register_blueprint(submit_feedback_bulk_bp)
 ### 그룹 수정 시작
 app.register_blueprint(groups_bp)
 ### 그룹 수정 끝
