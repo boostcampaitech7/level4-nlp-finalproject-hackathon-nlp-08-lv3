@@ -7,3 +7,4 @@ demo/backend/routes/__pycache__/
 demo/backend/__pycache__/
 demo/backend/.pytest_cache/
 demo/frontend/modules/__pycache__
+demo/frontend/modules/.env
