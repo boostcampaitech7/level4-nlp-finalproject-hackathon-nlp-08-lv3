@@ -3,7 +3,9 @@ import streamlit as st
 from langchain_upstage import UpstageDocumentParseLoader
 import requests
 from bs4 import BeautifulSoup
+import pandas as pd
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
@@ -159,13 +161,43 @@ def question_add_from_pdf_page():
                     display_evaluation_form(evaluation_data)
                     
                     # 저장 버튼
-                    if st.button("질문 저장"):
+                    if st.button("질문 저장", key="save_button"):
                         selected_questions = process_selected_questions()
                         if selected_questions:
-                            st.json(selected_questions)
                             st.success("선택한 질문이 저장되었습니다!")
+                            st.table(pd.DataFrame(selected_questions))
                         else:
                             st.warning("저장할 질문이 없습니다.")
+                    
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        if st.button("적용", key="apply_button"):
+                            selected_questions = process_selected_questions()
+                            if selected_questions:
+                                success = True
+                                for question in selected_questions:
+                                    payload = {
+                                        "keyword": question["keyword"],
+                                        "question_text": question["question"],
+                                        "question_type": question["question_type"],
+                                        "options": ','.join(question["options"]).strip() if question["options"] else None
+                                    }
+                                    r2 = requests.post(f"{API_BASE_URL}/questions", json=payload)
+                                    if r2.status_code != 200:
+                                        st.error(f"질문 저장 실패: {r2.text}")
+                                        success = False
+                                if success:
+                                    st.success("질문이 성공적으로 적용되었습니다")
+                                    time.sleep(2)
+                                    st.session_state.page = "login"
+                                    st.rerun()
+                            else:
+                                st.warning("적용할 질문이 없습니다.")
+                    
+                    with col2:
+                        if st.button("취소", key="cancel_button"):
+                            st.session_state.page = "login"
+                            st.rerun()
                     
             else:
                 st.error(response.json().get("message", "파일 업로드 실패"))
@@ -173,6 +205,3 @@ def question_add_from_pdf_page():
         except Exception as e:
             st.error(f"문서 처리 중 오류가 발생했습니다: {str(e)}")
 
-    if st.button("취소"):
-        st.session_state.page = "login"
-        st.rerun()
