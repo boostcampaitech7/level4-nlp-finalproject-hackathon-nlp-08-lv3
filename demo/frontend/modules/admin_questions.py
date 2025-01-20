@@ -24,6 +24,10 @@ def admin_manage_questions():
         maxtags=10,
         key='keywords'
     )
+    
+    if st.button("파일로 질문 추가", key="add_question_from_pdf_button"):
+        st.session_state.page = "question_add_from_pdf"
+        st.rerun()
 
     # 기존 질문 목록 표시
     resp = requests.get(f"{API_BASE_URL}/questions")
@@ -76,44 +80,55 @@ def admin_manage_questions():
             # 수정 상태 확인
             is_editing = st.session_state.get(f"editing_{q_id}", False)
 
+            # 수정 모드 UI
             if is_editing:
                 # 수정 모드 UI
                 st.write(f"**질문 ID**: {q_id}")
-                edit_kw = st.selectbox("Keyword", options=keywords, index=keywords.index(q_kw), key=f"edit_kw_{q_id}")
-                edit_text = st.text_input("질문", value=q_txt, key=f"edit_text_{q_id}")
-                edit_type = st.selectbox(
-                    "질문 유형",
-                    ["single_choice", "multi_choice", "long_answer"],
-                    index=["single_choice", "multi_choice", "long_answer"].index(q_type_db),
-                    key=f"edit_type_{q_id}"
-                )
-
-                if edit_type == "long_answer":
-                    edit_opts = ""
+                
+                # Check if selected keyword exists in keywords
+                if q_kw not in keywords:
+                    st.error(f"'{q_kw}' 는 키워드 목록에 없습니다. '{q_kw}' 를 키워드 목록에 추가해주세요.")
                 else:
-                    edit_opts = st.text_input("옵션", value=q_opts, key=f"edit_opts_{q_id}")
+                    edit_kw = st.selectbox("Keyword", options=keywords, index=keywords.index(q_kw) if q_kw in keywords else 0, key=f"edit_kw_{q_id}")
+                    edit_text = st.text_input("질문", value=q_txt, key=f"edit_text_{q_id}")
+                    edit_type = st.selectbox(
+                        "질문 유형",
+                        ["single_choice", "multi_choice", "long_answer"],
+                        index=["single_choice", "multi_choice", "long_answer"].index(q_type_db),
+                        key=f"edit_type_{q_id}"
+                    )
 
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    if st.button("수정 완료", key=f"save_{q_id}"):
-                        payload = {
-                            "keyword": edit_kw,
-                            "question_text": edit_text,
-                            "question_type": edit_type,
-                            "options": edit_opts if edit_opts.strip() else None
-                        }
-                        update_resp = requests.put(f"{API_BASE_URL}/questions/{q_id}", json=payload)
-                        if update_resp.status_code == 200 and update_resp.json().get("success"):
-                            st.success("성공적으로 질문이 수정되었습니다.")
-                            time.sleep(2)  # 추가된 부분
+                    if edit_type == "long_answer":
+                        edit_opts = ""
+                    else:
+                        edit_opts = st.text_input("옵션", value=q_opts, key=f"edit_opts_{q_id}")
+
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        if st.button("수정 완료", key=f"save_{q_id}"):
+                            # Check if the keyword exists in the tags list
+                            if edit_kw not in keywords:
+                                st.error(f"'{edit_kw}' 는 키워드 목록에 없습니다. '(존재하지 않는 키워드)' 를 키워드 목록에 추가해주세요.")
+                            else:
+                                payload = {
+                                    "keyword": edit_kw,
+                                    "question_text": edit_text,
+                                    "question_type": edit_type,
+                                    "options": edit_opts if edit_opts.strip() else None
+                                }
+                                update_resp = requests.put(f"{API_BASE_URL}/questions/{q_id}", json=payload)
+                                if update_resp.status_code == 200 and update_resp.json().get("success"):
+                                    st.success("성공적으로 질문이 수정되었습니다.")
+                                    time.sleep(2)
+                                    st.session_state[f"editing_{q_id}"] = False
+                                    st.rerun()
+                                else:
+                                    st.error("질문 수정에 실패했습니다.")
+                    with col2:
+                        if st.button("취소", key=f"cancel_{q_id}"):
                             st.session_state[f"editing_{q_id}"] = False
                             st.rerun()
-                        else:
-                            st.error("질문 수정에 실패했습니다.")
-                with col2:
-                    if st.button("취소", key=f"cancel_{q_id}"):
-                        st.session_state[f"editing_{q_id}"] = False
-                        st.rerun()
+                            
             else:
                 # 일반 모드 UI
                 col_info, col_edit, col_delete = st.columns([6, 0.5, 0.5])
@@ -143,10 +158,6 @@ def admin_manage_questions():
             st.divider()
     else:
         st.error("질문 목록 조회 실패")
-
-    if st.button("PDF로 질문 추가", key="add_question_from_pdf_button"):
-        st.session_state.page = "question_add_from_pdf"
-        st.rerun()
 
 def preview_questions():
     st.write("## 미리보기: 동료 피드백 작성 화면")
