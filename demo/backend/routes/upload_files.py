@@ -2,7 +2,7 @@ import os
 import re
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
-from file import save_file_metadata
+from file_db import save_file_metadata
 
 upload_files_bp = Blueprint('upload_files', __name__)
 

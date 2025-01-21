@@ -1,6 +1,5 @@
-### 그룹 수정 시작
 from flask import Blueprint, request, jsonify
-from db import get_connection
+from user_db import get_connection
 
 groups_bp = Blueprint('groups', __name__)
 
@@ -48,7 +47,6 @@ def create_group():
 def delete_group(group_id):
     conn = get_connection()
     cur = conn.cursor()
-
     try:
         cur.execute("DELETE FROM groups WHERE id = ?", (group_id,))
         if cur.rowcount == 0:
@@ -109,13 +107,10 @@ def add_user_to_group(group_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        # 이미 해당 그룹에 속해있는지 확인
-        cur.execute("SELECT 1 FROM user_groups WHERE group_id = ? AND user_id = ?", (group_id, user_id))
-        if cur.fetchone():
-            return jsonify({"success": False, "message": "이미 그룹에 속한 사용자입니다."}), 400
-
         # 사용자를 그룹에 추가
-        cur.execute("INSERT INTO user_groups (group_id, user_id) VALUES (?, ?)", (group_id, user_id))
+        cur.execute("UPDATE users SET group_id = ? WHERE id = ?", (group_id, user_id))
+        if cur.rowcount == 0:
+            return jsonify({"success": False, "message": "해당 사용자가 존재하지 않습니다."}), 404
         conn.commit()
         return jsonify({"success": True, "message": "사용자가 그룹에 추가되었습니다."}), 200
     except Exception as e:
@@ -129,13 +124,12 @@ def remove_user_from_group(group_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("DELETE FROM user_groups WHERE group_id = ? AND user_id = ?", (group_id, user_id))
+        cur.execute("UPDATE users SET group_id = NULL WHERE id = ? AND group_id = ?", (user_id, group_id))
         if cur.rowcount == 0:
-            return jsonify({"success": False, "message": "해당 사용자가 그룹에 속해있지 않습니다."}), 404
+            return jsonify({"success": False, "message": "해당 사용자가 그룹에 속해있지 않거나 존재하지 않습니다."}), 404
         conn.commit()
         return jsonify({"success": True, "message": "사용자가 그룹에서 제거되었습니다."}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
     finally:
         conn.close()
-### 그룹 수정 끝

@@ -1,7 +1,7 @@
 import os
 from flask import Flask
-from db import init_db, seed_data
-from file import init_db as init_file_db
+from qa_db import init_db, seed_data
+from file_db import init_db as init_file_db
 
 # Blueprint 임포트
 from routes.login import login_bp
@@ -13,16 +13,22 @@ from routes.user_feedback_result import user_feedback_result_bp
 from routes.upload_files import upload_files_bp
 from routes.check_feedback import check_feedback_bp
 from routes.submit_feedback_bulk import submit_feedback_bulk_bp
-### 그룹 수정 시작
-from routes.groups import groups_bp  # 추가
-### 그룹 수정 끝
+from routes.groups import groups_bp  
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# DB 초기화
+DB_FOLDER = 'db'
+app.config['DB_FOLDER'] = DB_FOLDER
+
+# DB 초기화 및 시드 데이터 추가
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(DB_FOLDER):
+    os.makedirs(DB_FOLDER)
+    
 init_db()
 seed_data()
 init_file_db()
@@ -41,11 +47,8 @@ app.register_blueprint(user_feedback_result_bp)
 app.register_blueprint(upload_files_bp)
 app.register_blueprint(check_feedback_bp)
 app.register_blueprint(submit_feedback_bulk_bp)
-### 그룹 수정 시작
 app.register_blueprint(groups_bp)
-### 그룹 수정 끝
+
 
 if __name__ == "__main__":
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
     app.run(port=5000, debug=True)

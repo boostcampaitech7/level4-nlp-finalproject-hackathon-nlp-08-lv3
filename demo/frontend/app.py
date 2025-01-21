@@ -1,5 +1,13 @@
-import streamlit as st
+from modules.login import login_page
+from modules.account import create_account_page, account_created_page
+from modules.admin_questions import admin_manage_questions, preview_questions, question_add_page, question_edit_page
+from modules.admin_feedback import admin_view_feedback
+from modules.user_feedback_write import user_write_feedback
+from modules.user_feedback_result import user_view_my_feedback
+from modules.upload_files import question_add_from_pdf_page
+from modules.admin_group_manage import admin_manage_groups
 import time
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,16 +27,6 @@ if "page" not in st.session_state:
 if "account_created" not in st.session_state:
     st.session_state.account_created = False
 
-from modules.login import login_page
-from modules.account import create_account_page, account_created_page
-from modules.admin_questions import admin_manage_questions, preview_questions, question_add_page, question_edit_page
-from modules.admin_feedback import admin_view_feedback
-from modules.user_feedback_write import user_write_feedback
-from modules.user_feedback_result import user_view_my_feedback
-from modules.upload_files import question_add_from_pdf_page
-### 그룹 수정 시작
-from modules.admin_group_manage import admin_manage_groups
-### 그룹 수정 끝
 
 def main():
     st.set_page_config(page_title="동료 피드백 플랫폼", layout="wide")
@@ -67,7 +65,7 @@ def admin_page():
     if st.sidebar.button("동료 피드백 결과 조회"):
         st.session_state.admin_tab = "feedback"
 ### 그룹 수정 시작
-    if st.sidebar.button("그룹 관리"):
+    if st.sidebar.button("👥 부서 관리"):
         st.session_state.admin_tab = "groups"
 ### 그룹 수정 끝
 
