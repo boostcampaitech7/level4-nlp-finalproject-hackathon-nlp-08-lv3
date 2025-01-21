@@ -36,6 +36,7 @@ def create_account_page():
             group_options = {}
 
         selected_group = st.selectbox("부서 선택", ["선택"] + list(group_options.keys()), key="new_group_select")
+        selected_rank = st.selectbox("직급 선택", ["팀장", "팀원"], key="new_rank_select")
 
     admin_key_input = ""
     if new_role == "admin":
@@ -46,7 +47,7 @@ def create_account_page():
             if admin_key_input != ADMIN_KEY:
                 st.error("관리자 key가 올바르지 않습니다.")
                 return
-        if selected_group == "선택":
+        if new_role == "user" and selected_group == "선택":
             st.error("부서를 선택해주세요.")
             return
 
@@ -55,7 +56,8 @@ def create_account_page():
             "name": new_name,
             "password": new_password,
             "role": new_role,
-            "group_id": group_options[selected_group]
+            "group_id": group_options[selected_group],
+            "rank": selected_rank if new_role == "user" else None
         }
         resp = requests.post(f"{API_BASE_URL}/create_account", json=payload)
         if resp.status_code == 200:

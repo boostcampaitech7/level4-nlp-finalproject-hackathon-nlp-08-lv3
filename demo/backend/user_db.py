@@ -19,6 +19,7 @@ def init_users_db():
         password TEXT NOT NULL,
         role TEXT NOT NULL,
         group_id INTEGER,
+        rank TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (group_id) REFERENCES groups (id)
     )
@@ -45,23 +46,22 @@ def seed_users_data():
     user_count = cur.fetchone()[0]
     if user_count == 0:
         users_data = [
-            (1, 'admin', '관리자', 'admin123', 'admin', None, '2025-01-14 08:46:08'),
-            (2, 'user1', 'user1', 'user123', 'user', 1, '2025-01-14 08:46:08'),
-            (3, 'user2', 'user2', 'user123', 'user', 1, '2025-01-14 08:46:08'),
-            (4, 'user3', 'user3', 'user123', 'user', 1, '2025-01-14 08:46:08'),
-            (5, 'user4', 'user4', 'user123', 'user', 1, '2025-01-14 08:46:08'),
-            (6, 'user5', 'user5', 'user123', 'user', 2, '2025-01-14 08:46:08'),
-            (7, 'user6', 'user6', 'user123', 'user', 2, '2025-01-14 08:46:08'),
-            (8, 'user7', 'user7', 'user123', 'user', 2, '2025-01-14 08:46:08'),
-            (9, 'user8', 'user8', 'user123', 'user', 3, '2025-01-14 08:46:08'),
-            (10, 'user9', 'user9', 'user123', 'user', 3, '2025-01-14 08:46:08'),
-            (11, 'user10', 'user10', 'user123', 'user', 3, '2025-01-14 08:46:08'),
-            # 나머지 사용자 데이터...
+            (1, 'admin', '관리자', 'admin123', 'admin', None, None, '2025-01-14 08:46:08'),
+            (2, 'user1', 'user1', 'user123', 'user', 1, '팀장', '2025-01-14 08:46:08'),
+            (3, 'user2', 'user2', 'user123', 'user', 1, '팀원', '2025-01-14 08:46:08'),
+            (4, 'user3', 'user3', 'user123', 'user', 1, '팀원','2025-01-14 08:46:08'),
+            (5, 'user4', 'user4', 'user123', 'user', 1, '팀원','2025-01-14 08:46:08'),
+            (6, 'user5', 'user5', 'user123', 'user', 2, '팀원','2025-01-14 08:46:08'),
+            (7, 'user6', 'user6', 'user123', 'user', 2, '팀원','2025-01-14 08:46:08'),
+            (8, 'user7', 'user7', 'user123', 'user', 2, '팀장', '2025-01-14 08:46:08'),
+            (9, 'user8', 'user8', 'user123', 'user', 3, '팀장', '2025-01-14 08:46:08'),
+            (10, 'user9', 'user9', 'user123', 'user', 3, '팀원','2025-01-14 08:46:08'),
+            (11, 'user10', 'user10', 'user123', 'user', 3, '팀원','2025-01-14 08:46:08'),
         ]
         for row in users_data:
             cur.execute("""
-                INSERT INTO users (id, username, name, password, role, group_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO users (id, username, name, password, role, group_id, rank, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, row)
 
     # 4) groups
