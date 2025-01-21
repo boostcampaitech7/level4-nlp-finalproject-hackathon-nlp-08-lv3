@@ -51,7 +51,7 @@ def admin_manage_groups():
 
                         # 현재 그룹 사용자 및 기타 사용자 분리
                         group_users = [u for u in users if u.get("group_id") == group_id]
-                        other_users = [u for u in users if u.get("group_id") != group_id]
+                        other_users = [u for u in users if u.get("group_id") != group_id and u.get("role") != "admin"]
 
                         # 현재 그룹 사용자 표시
                         st.write("### 현재 그룹 사용자")
