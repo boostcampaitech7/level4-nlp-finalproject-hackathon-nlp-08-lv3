@@ -1,6 +1,6 @@
 ### 그룹 수정 시작
 from flask import Blueprint, request, jsonify
-from db import get_connection
+from user_db import get_connection
 
 groups_bp = Blueprint('groups', __name__)
 

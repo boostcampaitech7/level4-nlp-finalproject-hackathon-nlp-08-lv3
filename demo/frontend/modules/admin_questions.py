@@ -150,7 +150,8 @@ def admin_manage_questions():
                     if st.button("삭제", key=f"delete_{q_id}"):
                         resp_del = requests.delete(f"{API_BASE_URL}/questions/{q_id}")
                         if resp_del.status_code == 200 and resp_del.json().get("success"):
-                            st.success("질문이 성공적으로 삭제되었습니다.")
+                           #st.success("질문이 성공적으로 삭제되었습니다.")
+                           pass
                         else:
                             st.error("질문 삭제 실패")
                         st.rerun()

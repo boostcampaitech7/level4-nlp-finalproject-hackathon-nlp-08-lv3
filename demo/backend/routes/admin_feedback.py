@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db import get_connection
+from qa_db import get_connection
 
 admin_feedback_bp = Blueprint("admin_feedback", __name__)
 

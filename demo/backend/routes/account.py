@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db import get_connection
+from user_db import get_connection
 
 account_bp = Blueprint("account", __name__)
 

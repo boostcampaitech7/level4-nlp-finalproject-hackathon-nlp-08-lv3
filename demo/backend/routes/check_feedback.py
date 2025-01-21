@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db import get_connection
+from qa_db import get_connection  # 수정된 부분: feedback_db에서 get_connection 가져오기
 
 check_feedback_bp = Blueprint("check_feedback", __name__)
 
