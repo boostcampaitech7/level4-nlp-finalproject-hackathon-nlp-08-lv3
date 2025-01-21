@@ -47,7 +47,15 @@ def seed_users_data():
         users_data = [
             (1, 'admin', '관리자', 'admin123', 'admin', None, '2025-01-14 08:46:08'),
             (2, 'user1', 'user1', 'user123', 'user', 1, '2025-01-14 08:46:08'),
-            (3, 'user2', 'user2', 'user123', 'user', 2, '2025-01-14 08:46:08'),
+            (3, 'user2', 'user2', 'user123', 'user', 1, '2025-01-14 08:46:08'),
+            (4, 'user3', 'user3', 'user123', 'user', 1, '2025-01-14 08:46:08'),
+            (5, 'user4', 'user4', 'user123', 'user', 1, '2025-01-14 08:46:08'),
+            (6, 'user5', 'user5', 'user123', 'user', 2, '2025-01-14 08:46:08'),
+            (7, 'user6', 'user6', 'user123', 'user', 2, '2025-01-14 08:46:08'),
+            (8, 'user7', 'user7', 'user123', 'user', 2, '2025-01-14 08:46:08'),
+            (9, 'user8', 'user8', 'user123', 'user', 3, '2025-01-14 08:46:08'),
+            (10, 'user9', 'user9', 'user123', 'user', 3, '2025-01-14 08:46:08'),
+            (11, 'user10', 'user10', 'user123', 'user', 3, '2025-01-14 08:46:08'),
             # 나머지 사용자 데이터...
         ]
         for row in users_data:
@@ -63,6 +71,7 @@ def seed_users_data():
         groups_data = [
             (1, "Development Team", "2025-01-14 08:46:08"),
             (2, "Marketing Team", "2025-01-14 08:46:08"),
+            (3, "Sales Team", "2025-01-14 08:46:08"),
         ]
         for row in groups_data:
             cur.execute("""
