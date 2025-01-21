@@ -9,7 +9,8 @@ def user_write_feedback():
     r_u = requests.get(f"{API_BASE_URL}/users")
     if r_u.status_code == 200 and r_u.json().get("success"):
         all_users = r_u.json()["users"]
-        filtered = [u for u in all_users if u["role"] == "user" and u["username"] != st.session_state.username]
+        curr_group = [u["group_id"] for u in all_users if u["username"] == st.session_state.username]
+        filtered = [u for u in all_users if u["role"] == "user" and u["username"] != st.session_state.username and u['group_id'] == curr_group[0]]
         if not filtered:
             st.info("피드백을 보낼 다른 사용자(일반 사용자)가 없습니다.")
             return
