@@ -12,6 +12,7 @@ def create_account():
     password = data.get("password")
     role = data.get("role")
     group_id = data.get("group_id")
+    rank = data.get("rank")
 
     conn = get_connection()
     cur = conn.cursor()
@@ -21,9 +22,9 @@ def create_account():
         return jsonify({"success": False, "message": "이미 존재하는 아이디입니다."}), 400
 
     cur.execute("""
-        INSERT INTO users (username, name, password, role, group_id)
-        VALUES (?, ?, ?, ?, ?)
-    """, (username, name, password, role, group_id))
+        INSERT INTO users (username, name, password, role, group_id, rank)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (username, name, password, role, group_id, rank))
     conn.commit()
     conn.close()
 
@@ -36,7 +37,7 @@ def get_users():
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT u.id, u.username, u.name, u.role, u.group_id, g.group_name
+            SELECT u.id, u.username, u.name, u.role, u.group_id, g.group_name, u.rank
             FROM users u
             LEFT JOIN groups g ON u.group_id = g.id
             ORDER BY u.id ASC
@@ -51,7 +52,8 @@ def get_users():
                 "name": r[2],
                 "role": r[3],
                 "group_id": r[4],
-                "group_name": r[5]
+                "group_name": r[5],
+                "rank": r[6]
             })
         return jsonify({"success": True, "users": users})
     except Exception as e:
