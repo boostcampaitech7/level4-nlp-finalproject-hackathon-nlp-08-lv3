@@ -25,6 +25,18 @@ def create_account_page():
     new_password = st.text_input("새 계정 비밀번호", type="password", key="new_password")
     new_role = st.selectbox("새 계정 역할", ["admin", "user"], key="new_role_select")
 
+    # 부서 목록 가져오기
+    if new_role == "user":
+        response = requests.get(f"{API_BASE_URL}/groups")
+        if response.status_code == 200:
+            groups = response.json().get("groups", [])
+            group_options = {group["group_name"]: group["id"] for group in groups}
+        else:
+            st.error("부서 목록을 가져오는 데 실패했습니다.")
+            group_options = {}
+
+        selected_group = st.selectbox("부서 선택", ["선택"] + list(group_options.keys()), key="new_group_select")
+
     admin_key_input = ""
     if new_role == "admin":
         admin_key_input = st.text_input("관리자 key 입력", type="password", key="admin_key_input")
@@ -34,11 +46,16 @@ def create_account_page():
             if admin_key_input != ADMIN_KEY:
                 st.error("관리자 key가 올바르지 않습니다.")
                 return
+        if selected_group == "선택":
+            st.error("부서를 선택해주세요.")
+            return
+
         payload = {
             "username": new_username,
             "name": new_name,
             "password": new_password,
-            "role": new_role
+            "role": new_role,
+            "group_id": group_options[selected_group]
         }
         resp = requests.post(f"{API_BASE_URL}/create_account", json=payload)
         if resp.status_code == 200:
