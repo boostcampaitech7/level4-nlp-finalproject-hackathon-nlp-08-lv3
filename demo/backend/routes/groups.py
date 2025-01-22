@@ -107,12 +107,48 @@ def add_user_to_group(group_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        # 사용자를 그룹에 추가
-        cur.execute("UPDATE users SET group_id = ? WHERE id = ?", (group_id, user_id))
+        data = request.get_json()
+        new_rank = data.get("rank")
+        if not new_rank:
+            return jsonify({"success": False, "message": "새로운 직급 정보가 필요합니다."}), 400
+
+        # 이전 정보 조회
+        cur.execute("""
+            SELECT u.name, u.rank, g.group_name 
+            FROM users u 
+            LEFT JOIN groups g ON u.group_id = g.id 
+            WHERE u.id = ?
+        """, (user_id,))
+        prev_info = cur.fetchone()
+        
+        # 새로운 그룹 정보 조회
+        cur.execute("SELECT group_name FROM groups WHERE id = ?", (group_id,))
+        new_group = cur.fetchone()
+
+        # 사용자 정보 업데이트
+        cur.execute("UPDATE users SET group_id = ?, rank = ? WHERE id = ?", 
+                   (group_id, new_rank, user_id))
+        
         if cur.rowcount == 0:
             return jsonify({"success": False, "message": "해당 사용자가 존재하지 않습니다."}), 404
+        
         conn.commit()
-        return jsonify({"success": True, "message": "사용자가 그룹에 추가되었습니다."}), 200
+        
+        # 이전/이후 정보를 포함한 응답
+        response_data = {
+            "success": True,
+            "message": "사용자가 그룹에 추가되었습니다.",
+            "previous": {
+                "name": prev_info[0],
+                "rank": prev_info[1],
+                "group_name": prev_info[2] if prev_info[2] else "소속 없음"
+            },
+            "new": {
+                "group_name": new_group[0],
+                "rank": new_rank
+            }
+        }
+        return jsonify(response_data), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
     finally:
