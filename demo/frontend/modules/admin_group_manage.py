@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 
 API_BASE_URL = "http://localhost:5000/api"
 
@@ -67,11 +68,11 @@ def admin_manage_groups():
                                 rank = user['rank']
                                 if rank == "팀장":
                                     st.markdown(f"<div style='display: inline-block; background-color: #ffcc00; border-radius: 5px; padding: 2px 5px; color: #000000; font-weight: bold; margin-right: 10px;'>{rank}</div>"
-                                                f"<span style='color: #ffffff;'>{user['name']}</span>", 
+                                                f"<span style='color: #000000;'>{user['name']}</span>", 
                                                 unsafe_allow_html=True)
                                 else:
                                     st.markdown(f"<div style='display: inline-block; background-color: #fae9a7; border-radius: 5px; padding: 2px 5px; color: #000000; font-weight: bold; margin-right: 10px;'>{rank}</div>"
-                                                f"<span style='color: #ffffff;'>{user['name']}</span>", 
+                                                f"<span style='color: #000000;'>{user['name']}</span>", 
                                                 unsafe_allow_html=True)
                             with cols[1]:
                                 if st.button("삭제", key=f"remove_user_{group_id}_{user['id']}"):  # 키에 group_id 추가
@@ -86,22 +87,44 @@ def admin_manage_groups():
 
                         # 사용자 추가 기능
                         st.write("### 부서 이전")
-                        available_user_names = [u["name"] for u in other_users]
-                        selected_user = st.selectbox("이전할 사용자를 선택하세요", ["선택"] + available_user_names, key=f"select_user_{group_id}")
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            available_user_names = [u["name"] for u in other_users]
+                            selected_user = st.selectbox(
+                                "이전할 사용자를 선택하세요", 
+                                ["선택"] + available_user_names, 
+                                key=f"select_user_{group_id}"
+                            )
+                        
+                        with col2:
+                            new_rank = st.selectbox(
+                                "새로운 직급 선택",
+                                ["팀장", "팀원"],
+                                key=f"new_rank_{group_id}"
+                            )
 
-                        if st.button("이전", key=f"add_user_{group_id}_{selected_user}"):  # 키에 group_id와 선택 사용자 추가
+                        if st.button("이전", key=f"add_user_{group_id}_{selected_user}"):
                             if selected_user != "선택":
                                 user_id = next(u["id"] for u in other_users if u["name"] == selected_user)
-                                add_response = requests.post(
-                                    f"{API_BASE_URL}/groups/{group_id}/users/{user_id}"
+                                response = requests.post(
+                                    f"{API_BASE_URL}/groups/{group_id}/users/{user_id}",
+                                    json={"rank": new_rank}
                                 )
-                                if add_response.status_code == 200:
-                                    st.success(f"'{selected_user}' 이전 성공")
+                                if response.status_code == 200:
+                                    data = response.json()
+                                    prev_info = data["previous"]
+                                    new_info = data["new"]
+                                    success_msg = (
+                                        f"'{prev_info['group_name']}'의 {prev_info['rank']} {prev_info['name']}님이 "
+                                        f"'{new_info['group_name']}'의 {new_info['rank']}로 이전되었습니다."
+                                    )
+                                    st.success(success_msg)
+                                    time.sleep(5)
                                     st.rerun()
                                 else:
-                                    st.error(f"이전 실패: {add_response.json().get('message', '')}")
+                                    st.error("부서 이전에 실패했습니다.")
                             else:
-                                st.warning("이전할 인원를 선택해주세요.")
+                                st.warning("이전할 인원을 선택해주세요.")
                     else:
                         st.error("사용자 목록 조회 실패")
 

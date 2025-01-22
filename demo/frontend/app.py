@@ -9,8 +9,11 @@ from modules.admin_group_manage import admin_manage_groups
 import time
 import streamlit as st
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
+
+API_BASE_URL = "http://localhost:5000/api"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -88,7 +91,20 @@ def admin_page():
 ### 그룹 수정 끝
 
 def user_page():
-    st.subheader(f"사용자 페이지 - {st.session_state.name}님")
+    # 사용자 정보 조회
+    response = requests.get(f"{API_BASE_URL}/users")
+    if response.status_code == 200 and response.json().get("success"):
+        users = response.json()["users"]
+        current_user = next((user for user in users if user["username"] == st.session_state.username), None)
+        
+        if current_user:
+            group_name = current_user.get("group_name", "소속 없음")
+            rank = current_user.get("rank", "")
+            st.subheader(f"사용자 페이지 - {group_name} {rank} {st.session_state.name}님")
+        else:
+            st.subheader(f"사용자 페이지 - {st.session_state.name}님")
+    else:
+        st.subheader(f"사용자 페이지 - {st.session_state.name}님")
 
     if "user_tab" not in st.session_state:
         st.session_state.user_tab = "write"
