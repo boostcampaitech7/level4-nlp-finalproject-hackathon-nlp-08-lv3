@@ -87,12 +87,26 @@ def admin_manage_groups():
 
                         # 사용자 추가 기능
                         st.write("### 부서 이전")
-                        col1, col2 = st.columns([2, 1])
+                        
+                        # 검색어 입력 필드
+                        search_name = st.text_input(
+                            "이전할 사용자 이름을 입력하세요 (검색)", 
+                            key=f"search_user_{group_id}"
+                        )
+                        
+                        # 검색어로 필터링된 사용자 목록
+                        available_user_names = [u["name"] for u in other_users]
+                        filtered_users = [
+                            name for name in available_user_names 
+                            if search_name.lower() in name.lower()
+                        ] if search_name else available_user_names
+                        
+                        # 사용자 선택과 직급 선택을 나란히 배치
+                        col1, col2 = st.columns(2)
                         with col1:
-                            available_user_names = [u["name"] for u in other_users]
                             selected_user = st.selectbox(
-                                "이전할 사용자를 선택하세요", 
-                                ["선택"] + available_user_names, 
+                                "검색된 사용자 목록", 
+                                ["선택"] + filtered_users,
                                 key=f"select_user_{group_id}"
                             )
                         
@@ -116,7 +130,7 @@ def admin_manage_groups():
                                     new_info = data["new"]
                                     success_msg = (
                                         f"'{prev_info['group_name']}'의 {prev_info['rank']} {prev_info['name']}님이 "
-                                        f"'{new_info['group_name']}'의 {new_info['rank']}로 이전되었습니다."
+                                        f"'{new_info['group_name']}'의 {new_info['rank']}으로 이전되었습니다."
                                     )
                                     st.success(success_msg)
                                     time.sleep(5)
