@@ -61,6 +61,7 @@ def create_radar_chart(category_scores):
 
 
 # 관리자 피드백 요약 화면
+# 관리자 피드백 요약 화면
 def admin_feedback_summary(df_fb):
     # Q1~Q25 데이터 필터링
     df_fb_obj = df_fb[df_fb['질문ID'].astype(int) <= 25]
@@ -114,3 +115,31 @@ def admin_feedback_summary(df_fb):
     with col2:
         st.subheader("Recommendation")
         st.write("돈의 속성의 책을 추천합니다.")
+
+    st.markdown("---")
+
+    if not df_fb_extra.empty:
+        st.subheader("Overall Feedback Summary")
+
+        # Q26~Q27 답변들 결합
+        all_feedback = " ".join(df_fb_extra['답변'].tolist())
+
+        # 요약 함수
+        def summarize_feedback(text):
+            try:
+                from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+                model_name = "lcw99/t5-base-korean-text-summary"
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+                inputs = tokenizer.encode("summarize: " + text, return_tensors="pt", max_length=512, truncation=True)
+                summary_ids = model.generate(inputs, num_beams=4, max_length=150, early_stopping=True)
+                return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+            except Exception as e:
+                return f"요약 실패: {str(e)}"
+
+        # 요약 수행
+        summary = summarize_feedback(all_feedback)
+
+        # 요약 결과 표시
+        st.text_area("Summary of Overall Feedback", summary, height=150)
