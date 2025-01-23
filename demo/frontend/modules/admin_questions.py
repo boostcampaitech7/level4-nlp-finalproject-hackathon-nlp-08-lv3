@@ -14,13 +14,13 @@ def admin_manage_questions():
         text='키워드를 입력하고 Enter를 누르세요',
         value=['업적','능력','리더십','협업','태도'],
         suggestions = [
-    "창의성", "책임감", "효율성", "리더십", "협업", 
-    "정확성", "적응력", "분석력", "열정", "신뢰성", 
-    "시간관리", "혁신", "투명성", "결정력", "성실성", 
-    "문제해결", "전문성", "의사소통", "동기부여", "감정지능", 
-    "팀워크", "멘토링", "자기계발", "유연성", "갈등관리", 
-    "목표달성", "학습", "공감", "창조성", "전략"
-    ],
+            "창의성", "책임감", "효율성", "리더십", "협업", 
+            "정확성", "적응력", "분석력", "열정", "신뢰성", 
+            "시간관리", "혁신", "투명성", "결정력", "성실성", 
+            "문제해결", "전문성", "의사소통", "동기부여", "감정지능", 
+            "팀워크", "멘토링", "자기계발", "유연성", "갈등관리", 
+            "목표달성", "학습", "공감", "창조성", "전략"
+        ],
         maxtags=10,
         key='keywords'
     )
@@ -28,7 +28,7 @@ def admin_manage_questions():
     if st.button("파일로 질문 추가", key="add_question_from_pdf_button"):
         st.session_state.page = "question_add_from_pdf"
         st.rerun()
-
+        
     # 기존 질문 목록 표시
     resp = requests.get(f"{API_BASE_URL}/questions")
     if resp.status_code == 200 and resp.json().get("success"):
