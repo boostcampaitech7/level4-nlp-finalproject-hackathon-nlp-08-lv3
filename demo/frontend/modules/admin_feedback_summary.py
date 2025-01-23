@@ -11,7 +11,7 @@ def admin_feedback_summary(df_fb):
     # 취소 버튼
     if st.button("🔙 Go Back"):
         st.session_state.page = "feedback"
-        st.experimental_rerun()
+        st.rerun()
     
     st.write("## Peer Feedback Summary and Visualization")
 
