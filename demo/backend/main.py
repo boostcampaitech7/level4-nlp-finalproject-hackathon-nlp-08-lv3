@@ -2,7 +2,6 @@ import os
 from flask import Flask
 from qa_db import init_db, seed_data
 from file_db import init_db as init_file_db
-
 # Blueprint 임포트
 from routes.login import login_bp
 from routes.account import account_bp
@@ -23,12 +22,16 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 DB_FOLDER = 'db'
 app.config['DB_FOLDER'] = DB_FOLDER
 
+PDF_FOLDER = 'pdf'
+app.config['PDF_FOLDER'] = PDF_FOLDER
 # DB 초기화 및 시드 데이터 추가
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 if not os.path.exists(DB_FOLDER):
     os.makedirs(DB_FOLDER)
-    
+if not os.path.exists(PDF_FOLDER):
+    os.makedirs(PDF_FOLDER)
+        
 init_db()
 seed_data()
 init_file_db()

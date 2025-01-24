@@ -4,7 +4,7 @@ import requests
 API_BASE_URL = "http://localhost:5000/api"
 
 def user_write_feedback():
-    st.write("## 동료 피드백 작성")
+    st.write("## 리뷰 작성")
 
     r_u = requests.get(f"{API_BASE_URL}/users")
     if r_u.status_code == 200 and r_u.json().get("success"):
@@ -12,10 +12,10 @@ def user_write_feedback():
         curr_group = [u["group_id"] for u in all_users if u["username"] == st.session_state.username]
         filtered = [u for u in all_users if u["role"] == "user" and u["username"] != st.session_state.username and u['group_id'] == curr_group[0]]
         if not filtered:
-            st.info("피드백을 보낼 다른 사용자(일반 사용자)가 없습니다.")
+            st.info("리뷰를 작성할 다른 사용자(일반 사용자)가 없습니다.")
             return
         name_map = {u["name"]: u["username"] for u in filtered}
-        sel_name = st.selectbox("피드백 대상 사용자", list(name_map.keys()))
+        sel_name = st.selectbox("리뷰 대상 사용자", list(name_map.keys()))
         to_username = name_map[sel_name]
     else:
         st.error("사용자 목록 조회 실패")
@@ -28,10 +28,10 @@ def user_write_feedback():
     })
     if check_resp.status_code == 200 and check_resp.json().get("success"):
         if check_resp.json().get("already_submitted"):
-            st.warning("이미 피드백을 작성한 사용자입니다.")
+            st.warning("이미 리뷰를 작성한 사용자입니다.")
             return
     else:
-        st.error("피드백 확인 API 오류")
+        st.error("리뷰 확인 API 오류")
         return
 
     # 질문 출력 및 답변 작성
@@ -85,6 +85,6 @@ def user_write_feedback():
 
         response = requests.post(f"{API_BASE_URL}/feedback/bulk", json=payload)
         if response.status_code == 200 and response.json().get("success"):
-            st.success("피드백 제출 완료!")
+            st.success("리뷰 제출 완료!")
         else:
-            st.error("피드백 제출에 실패했습니다.")
+            st.error("리뷰 제출에 실패했습니다.")

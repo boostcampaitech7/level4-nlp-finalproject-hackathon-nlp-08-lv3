@@ -7,7 +7,7 @@ import time  # 추가된 부분
 API_BASE_URL = "http://localhost:5000/api"
 
 def admin_manage_questions():
-    st.write("## 동료 피드백 질문 관리")
+    st.write("## 리뷰 템플릿 관리")
 
     keywords = st_tags(
         label = '### 키워드 목록 작성',
