@@ -63,9 +63,9 @@ def admin_page():
     if "admin_tab" not in st.session_state:
         st.session_state.admin_tab = "questions"
 
-    if st.sidebar.button("동료 피드백 질문 관리"):
+    if st.sidebar.button("⚙ 리뷰 템플릿 관리"):
         st.session_state.admin_tab = "questions"
-    if st.sidebar.button("동료 피드백 결과 조회"):
+    if st.sidebar.button("🔍 리뷰 결과 분석"):
         st.session_state.admin_tab = "feedback"
 ### 그룹 수정 시작
     if st.sidebar.button("👥 부서 관리"):
@@ -110,9 +110,9 @@ def user_page():
         st.session_state.user_tab = "write"
 
     st.sidebar.title("사용자 메뉴")
-    if st.sidebar.button("동료 피드백 작성"):
+    if st.sidebar.button("✍ 리뷰 작성"):
         st.session_state.user_tab = "write"
-    if st.sidebar.button("내 동료 피드백 결과 조회"):
+    if st.sidebar.button("📋 리뷰 결과"):
         st.session_state.user_tab = "my_feedback"
 
     st.sidebar.markdown("---")

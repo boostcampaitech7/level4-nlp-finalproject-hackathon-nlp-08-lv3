@@ -7,7 +7,7 @@ from modules.admin_feedback_summary import admin_feedback_summary
 API_BASE_URL = "http://localhost:5000/api"
 
 def admin_view_feedback():
-    st.write("## 동료 피드백 결과 조회")
+    st.write("## 리뷰 결과 분석")
 
     r = requests.get(f"{API_BASE_URL}/users")
     if r.status_code == 200 and r.json().get("success"):

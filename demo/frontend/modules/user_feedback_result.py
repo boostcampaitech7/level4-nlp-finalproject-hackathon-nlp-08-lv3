@@ -5,7 +5,7 @@ import pandas as pd
 API_BASE_URL = "http://localhost:5000/api"
 
 def user_view_my_feedback():
-    st.write("## 내가 받은 피드백 결과 조회")
+    st.write("## 리뷰 결과")
 
     my_uname = st.session_state.username
     params = {"username": my_uname}
@@ -23,6 +23,6 @@ def user_view_my_feedback():
             df_fb = pd.DataFrame(rows, columns=["질문ID","작성자","답변"])
             st.table(df_fb)
         else:
-            st.info("아직 받은 피드백이 없습니다.")
+            st.info("아직 받은 리뷰가 없습니다.")
     else:
-        st.error("피드백 조회 API 오류")
+        st.error("리뷰 조회 API 오류")
