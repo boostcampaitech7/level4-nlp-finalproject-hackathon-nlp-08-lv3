@@ -1,4 +1,5 @@
 import os
+import atexit
 from flask import Flask
 from qa_db import init_db, seed_data
 from file_db import init_db as init_file_db
@@ -13,6 +14,7 @@ from routes.upload_files import upload_files_bp
 from routes.check_feedback import check_feedback_bp
 from routes.submit_feedback_bulk import submit_feedback_bulk_bp
 from routes.groups import groups_bp  
+from routes.summary import summary_bp  # 추가된 부분
 
 app = Flask(__name__)
 
@@ -36,6 +38,21 @@ init_db()
 seed_data()
 init_file_db()
 
+def cleanup():
+    pdf_folder = app.config['PDF_FOLDER']
+    db_folder = app.config['DB_FOLDER']
+    result_db_path = os.path.join(db_folder, 'result.db')
+    
+    if os.path.exists(result_db_path):
+        os.remove(result_db_path)
+    if os.path.exists(pdf_folder):
+        for file in os.listdir(pdf_folder):
+            file_path = os.path.join(pdf_folder, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+atexit.register(cleanup)
+
 @app.route("/")
 def index():
     return "Flask backend - from/to username version"
@@ -51,6 +68,7 @@ app.register_blueprint(upload_files_bp)
 app.register_blueprint(check_feedback_bp)
 app.register_blueprint(submit_feedback_bulk_bp)
 app.register_blueprint(groups_bp)
+app.register_blueprint(summary_bp)  # 추가된 부분
 
 
 if __name__ == "__main__":
