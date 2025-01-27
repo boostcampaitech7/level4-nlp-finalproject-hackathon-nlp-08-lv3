@@ -78,11 +78,7 @@ def admin_page():
         return
 
     if st.session_state.admin_tab == "questions":
-        tab_manage, tab_preview = st.tabs(["편집", "미리보기"])
-        with tab_manage:
-            admin_manage_questions()
-        with tab_preview:
-            preview_questions()
+        admin_manage_questions()
     elif st.session_state.admin_tab == "feedback":
         admin_view_feedback()
 ### 그룹 수정 시작

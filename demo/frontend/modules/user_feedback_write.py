@@ -87,4 +87,8 @@ def user_write_feedback():
         if response.status_code == 200 and response.json().get("success"):
             st.success("리뷰 제출 완료!")
         else:
-            st.error("리뷰 제출에 실패했습니다.")
+            error_msg = response.json().get("message", "리뷰 제출에 실패했습니다.")
+            if "마감" in error_msg:  # 마감 관련 에러 메시지인 경우
+                st.error("리뷰 제출 마감 기한이 지났습니다.")
+            else:
+                st.error(error_msg)

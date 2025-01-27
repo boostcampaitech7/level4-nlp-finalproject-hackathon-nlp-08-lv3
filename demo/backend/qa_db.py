@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from user_db import init_users_db, seed_users_data  # 추가된 부분
+from user_db import init_users_db, seed_users_data
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
 
@@ -9,15 +9,16 @@ def get_connection():
 
 def init_db():
     """
-    DB 테이블 구조 (수정 후):
-    1) users: (id, username, name, password, role, created_at)
+    DB 테이블 구조:
+    1) users: (id, username, name, password, role, email, created_at)
     2) feedback_questions: (id, keyword, question_text, question_type, options, created_at)
     3) feedback_results: (id, question_id, from_username, to_username, answer_content, created_at)
+    4) feedback_deadline: (id, deadline, remind_days, remind_time, created_at)
     """
     conn = get_connection()
     cur = conn.cursor()
 
-    # 2) feedback_questions
+    # feedback_questions
     cur.execute('''
     CREATE TABLE IF NOT EXISTS feedback_questions (
         id INTEGER PRIMARY KEY,
@@ -29,7 +30,7 @@ def init_db():
     )
     ''')
 
-    # 3) feedback_results
+    # feedback_results
     cur.execute('''
     CREATE TABLE IF NOT EXISTS feedback_results (
         id INTEGER PRIMARY KEY,
@@ -41,10 +42,20 @@ def init_db():
     )
     ''')
 
+    # feedback_deadline
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS feedback_deadline (
+        id INTEGER PRIMARY KEY,
+        deadline DATETIME NOT NULL,
+        remind_days INTEGER NOT NULL,
+        remind_time TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
     conn.commit()
     conn.close()
 
-    # 추가된 부분
     init_users_db()
 
 def seed_data():
@@ -54,7 +65,7 @@ def seed_data():
     conn = get_connection()
     cur = conn.cursor()
 
-    # 2) feedback_questions
+    # feedback_questions
     cur.execute("SELECT COUNT(*) FROM feedback_questions")
     q_count = cur.fetchone()[0]
     if q_count == 0:
@@ -68,7 +79,7 @@ def seed_data():
                 VALUES (?, ?, ?, ?, ?, ?)
             """, row)
 
-    # 3) feedback_results
+    # feedback_results
     cur.execute("SELECT COUNT(*) FROM feedback_results")
     f_count = cur.fetchone()[0]
     if f_count == 0:
@@ -84,5 +95,4 @@ def seed_data():
     conn.commit()
     conn.close()
 
-    # 추가된 부분
     seed_users_data()

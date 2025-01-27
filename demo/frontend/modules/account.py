@@ -22,6 +22,7 @@ def create_account_page():
 
     new_username = st.text_input("새 계정 아이디(중복 불가)", key="new_username")
     new_name = st.text_input("이름(실명)", key="new_name")
+    new_email = st.text_input("이메일", key="new_email")
     new_password = st.text_input("새 계정 비밀번호", type="password", key="new_password")
     new_role = st.selectbox("새 계정 역할", ["admin", "user"], key="new_role_select")
 
@@ -42,7 +43,17 @@ def create_account_page():
     if new_role == "admin":
         admin_key_input = st.text_input("관리자 key 입력", type="password", key="admin_key_input")
 
+    # 이메일 유효성 검사 함수
+    def is_valid_email(email):
+        import re
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
+
     if st.button("계정 생성", key="create_account_btn"):
+        if not is_valid_email(new_email):
+            st.error("올바른 이메일 형식이 아닙니다.")
+            return
+
         if new_role == "admin":
             if admin_key_input != ADMIN_KEY:
                 st.error("관리자 key가 올바르지 않습니다.")
@@ -54,9 +65,10 @@ def create_account_page():
         payload = {
             "username": new_username,
             "name": new_name,
+            "email": new_email,
             "password": new_password,
             "role": new_role,
-            "group_id": group_options[selected_group],
+            "group_id": group_options[selected_group] if new_role == "user" else None,
             "rank": selected_rank if new_role == "user" else None
         }
         resp = requests.post(f"{API_BASE_URL}/create_account", json=payload)

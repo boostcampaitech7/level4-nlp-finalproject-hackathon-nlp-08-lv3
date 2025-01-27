@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from user_db import get_connection
+import sqlite3
 
 account_bp = Blueprint("account", __name__)
 
@@ -11,24 +12,32 @@ def create_account():
     name = data.get("name")
     password = data.get("password")
     role = data.get("role")
+    email = data.get("email")
     group_id = data.get("group_id")
     rank = data.get("rank")
 
+    if not all([username, name, password, role, email]):
+        return jsonify({"success": False, "message": "모든 필수 항목을 입력해주세요."}), 400
+
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM users WHERE username=?", (username,))
-    if cur.fetchone()[0] > 0:
+
+    try:
+        # 이메일 중복 체크
+        cur.execute("SELECT id FROM users WHERE email = ?", (email,))
+        if cur.fetchone():
+            return jsonify({"success": False, "message": "이미 사용 중인 이메일입니다."}), 400
+
+        cur.execute("""
+            INSERT INTO users (username, name, password, role, email, group_id, rank)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (username, name, password, role, email, group_id, rank))
+        conn.commit()
+        return jsonify({"success": True, "message": "계정이 생성되었습니다."})
+    except sqlite3.IntegrityError:
+        return jsonify({"success": False, "message": "이미 사용 중인 아이디입니다."}), 400
+    finally:
         conn.close()
-        return jsonify({"success": False, "message": "이미 존재하는 아이디입니다."}), 400
-
-    cur.execute("""
-        INSERT INTO users (username, name, password, role, group_id, rank)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (username, name, password, role, group_id, rank))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"success": True, "message": "계정 생성 완료"})
 
 # 사용자 목록 조회
 @account_bp.route("/api/users", methods=["GET"])
