@@ -10,3 +10,4 @@ demo/frontend/modules/__pycache__
 demo/frontend/.env
 demo/backend/db
 demo/backend/uploads
+demo/backend/pdf

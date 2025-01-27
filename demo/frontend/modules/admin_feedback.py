@@ -3,7 +3,6 @@ import requests
 import pandas as pd
 import subprocess  # 추가된 부분
 import os
-from modules.admin_feedback_summary import admin_feedback_summary
 
 API_BASE_URL = "http://localhost:5000/api"
 
@@ -78,11 +77,13 @@ def admin_view_feedback():
                                 rows.append([q_id, from_u, ans, created])
                             df_fb = pd.DataFrame(rows, columns=["질문ID", "작성자", "답변", "작성일시"])
 
-                    # 결과 요약 페이지 호출
-                    admin_feedback_summary(df_fb)
+                            # 결과 요약 페이지 호출
+                            admin_feedback_summary(df_fb)
+                        else:
+                            st.info("해당 사용자가 받은 피드백이 없습니다.")
+                    else:
+                        st.error("피드백 조회 실패: " + data.get("message", ""))
                 else:
-                    st.info("해당 사용자가 받은 피드백이 없습니다.")
-            else:
-                st.error("피드백 조회 실패: " + data.get("message", ""))
+                    st.error("피드백 조회 API 오류")
         else:
-            st.error("피드백 조회 API 오류")
+            st.info("PDF를 생성한 후에 결과를 조회할 수 있습니다.")
