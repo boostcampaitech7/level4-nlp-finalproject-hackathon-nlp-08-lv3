@@ -217,17 +217,17 @@ def admin_manage_deadline():
     with col3:
         remind_days = st.number_input(
             "마감일 며칠 전부터 알림을 보낼까요?",
-            min_value=1,
+            min_value=0,
             max_value=14,
             value=3,
-            help="1-14일 사이로 설정해주세요"
+            help="0-14 사이로 설정해주세요"
         )
     
     with col4:
         remind_time = st.text_input(
             "하루 중 언제 알림을 보낼까요? (HH:MM)",
             value="09:00",
-            help="24시간 형식으로 입력해주세요 (예: 09:00)"
+            help="24시간 형식으로 입력해주세요(예: 09:00)"
         )
         
         # 시간 형식 검증
