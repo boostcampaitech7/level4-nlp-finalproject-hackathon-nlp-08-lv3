@@ -18,6 +18,7 @@ def init_users_db():
         name TEXT NOT NULL,
         password TEXT NOT NULL,
         role TEXT NOT NULL,
+        email TEXT NOT NULL,
         group_id INTEGER,
         rank TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
