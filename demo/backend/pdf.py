@@ -13,6 +13,7 @@ import matplotlib.font_manager as fm
 import sqlite3
 import os
 from subprocess import run
+from llm_sum import summarize_multiple
 
 # 한글 폰트 등록
 font_path = "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf"
@@ -145,7 +146,7 @@ def draw_assessment_box(c, data, width, height):
             parent=styles["Normal"],
             fontName="NanumMyeongjo",
             fontSize=font_size,
-            leading=font_size * 1.5  # 🔹 줄간격을 글자 크기의 1.5배로 설정
+            leading=font_size * 1.5  # 줄간격을 글자 크기의 1.5배로 설정
         )
         paragraph = Paragraph(text, style)
 
