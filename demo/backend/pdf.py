@@ -4,8 +4,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle, Paragraph
-from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +13,7 @@ import matplotlib.font_manager as fm
 import sqlite3
 import os
 from subprocess import run
+from llm_sum import summarize_multiple
 
 # 한글 폰트 등록
 font_path = "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf"
@@ -121,21 +121,45 @@ def draw_header(c, data, width, height):
 
 # ==================================  # 2번째 블록
 def draw_assessment_box(c, data, width, height):
+    
+    mul_result = summarize_multiple(user_data['scores'])
+    
     styles = getSampleStyleSheet()
-    style = styles["Normal"]
-    style.fontName = "NanumMyeongjo"
-    style.fontSize = 10
-    paragraph = Paragraph(data['assessment_text'], style)
     
     box_x, box_y = 50, height
     box_width, box_height = 350, 80
-    
+
+    # 박스 그리기
     c.setStrokeColor(colors.black)
     c.setFillColor(colors.lightgrey)
     c.rect(box_x, box_y, box_width, box_height, fill=1)
-    
+
+    # 텍스트 크기를 동적으로 조정
+    text = mul_result
+    font_size = 12  # 초기 폰트 크기
+    max_font_size = 12
+    min_font_size = 6  # 최소 폰트 크기 (너무 작아지지 않도록 제한)
+
+    while font_size >= min_font_size:
+        style = ParagraphStyle(
+            "CustomStyle",
+            parent=styles["Normal"],
+            fontName="NanumMyeongjo",
+            fontSize=font_size,
+            leading=font_size * 1.5  # 줄간격을 글자 크기의 1.5배로 설정
+        )
+        paragraph = Paragraph(text, style)
+
+        # 텍스트가 박스 크기에 맞는지 확인
+        width_needed, height_needed = paragraph.wrap(box_width - 20, box_height - 20)
+        
+        if height_needed <= box_height - 20:
+            break  # 박스에 맞으면 루프 종료
+        font_size -= 1  # 텍스트 크기를 줄여서 다시 시도
+
+    # 텍스트 그리기
     paragraph.wrapOn(c, box_width - 20, box_height - 20)
-    paragraph.drawOn(c, box_x + 10, box_y + 50)
+    paragraph.drawOn(c, box_x + 10, box_y + (box_height - height_needed) / 2)  # 중앙 정렬
 
 def draw_grade_box(c, data, width, height):
     styles = getSampleStyleSheet()
@@ -314,7 +338,7 @@ def generate_pdf(data, filename):
     draw_assessment_box(c, data, width, height_st3)
     draw_grade_box(c, data, width, height_st3)
     draw_table(c, data, width, height_st2)
-    draw_radar_chart(c, data, width, height_st2)
+    # draw_radar_chart(c, data, width, height_st2)
     
     # 표 바로 아래로 박스를 시작하도록 `height_st2(표 끝 위치)와 `table_down(간격)` 전달
     draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down)
@@ -329,7 +353,6 @@ if __name__ == "__main__":
     for user_data in users_data:
         user_data.update({
             'title': "인사고과 평가표",
-            'assessment_text': "업무를 믿고 맡길 수 있는 사원<br/>독창성은 없는 편이나 주어진 업무는 확실히 처리하는 편",
             'team_opinion': "소속 팀 의견",
             'recommendations': "추천 도서 및 영상",
         })
