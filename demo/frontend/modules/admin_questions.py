@@ -29,12 +29,12 @@ def admin_manage_questions():
                     resp = requests.get(f"{API_BASE_URL}/questions")
                     if resp.status_code == 200 and resp.json().get("success"):
                         questions = resp.json()["questions"]
-                        existing_long_q = {q["question_text"] for q in questions if q["question_type"] == "long_answer"}
+                        existing_long_q = {(q["question_text"], q['keyword']) for q in questions if q["question_type"] == "long_answer"}
                         for q in questions:
                             keyword.add(q["keyword"])
                         for key in keyword:
                             for lq in long_q:
-                                if lq not in existing_long_q:
+                                if (lq, key) not in existing_long_q:
                                     payload = {
                                         "keyword": key,
                                         "question_text": lq,
