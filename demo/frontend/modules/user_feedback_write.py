@@ -42,26 +42,42 @@ def user_write_feedback():
         st.error("질문 목록 불러오기 실패")
         return
 
-    answers = {}
+    # keyword 별로 질문 나누기
+    keyword_map = {}
     for q in questions:
-        q_id = q["id"]
-        q_text = q["question_text"]
-        q_type = q["question_type"]
-        q_opts = q["options"] or ""
-        st.write(f"**Q{q_id}**: {q_text}")
+        keyword = q.get("keyword", "기타")
+        if keyword not in keyword_map:
+            keyword_map[keyword] = []
+        keyword_map[keyword].append(q)
 
-        key_prefix = f"question_{q_id}"
-        if q_type == "single_choice":
-            opts = [opt.strip() for opt in q_opts.split(",")] if q_opts else []
-            chosen = st.radio("선택", opts, key=f"{key_prefix}_radio")
-            answers[q_id] = chosen
-        elif q_type == "multi_choice":
-            opts = [opt.strip() for opt in q_opts.split(",")] if q_opts else []
-            chosen = st.multiselect("선택(복수)", opts, key=f"{key_prefix}_multi")
-            answers[q_id] = ", ".join(chosen)
-        else:
-            short_ans = st.text_input("답변 입력", key=f"{key_prefix}_text")
-            answers[q_id] = short_ans
+    answers = {}
+
+    for keyword, qs in keyword_map.items():
+        st.markdown(f"""
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h3>{keyword}</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        for q in qs:
+            q_id = q["id"]
+            q_text = q["question_text"]
+            q_type = q["question_type"]
+            q_opts = q["options"] or ""
+            
+            key_prefix = f"question_{q_id}"
+            if q_type == "single_choice":
+                opts = [opt.strip() for opt in q_opts.split(",")] if q_opts else []
+                col1, col2 = st.columns([1.5, 3])
+                with col1:
+                    st.markdown(f"<p style='color: #666;'><strong>{q_text}</strong></p>", unsafe_allow_html=True)
+                with col2:
+                    chosen = st.radio("", opts, key=f"{key_prefix}_radio", horizontal=True, index=None)
+                answers[q_id] = chosen
+                st.markdown("---")
+            else:
+                st.markdown(f"<p style='color: #666;'><strong>{q_text}</strong></p>", unsafe_allow_html=True)
+                short_ans = st.text_input("답변 입력", key=f"{key_prefix}_text")
+                answers[q_id] = short_ans
 
     if st.button("제출"):
         from_username = st.session_state.username
