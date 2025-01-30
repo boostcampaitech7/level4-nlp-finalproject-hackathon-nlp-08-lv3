@@ -338,7 +338,7 @@ def generate_pdf(data, filename):
     draw_assessment_box(c, data, width, height_st3)
     draw_grade_box(c, data, width, height_st3)
     draw_table(c, data, width, height_st2)
-    # draw_radar_chart(c, data, width, height_st2)
+    draw_radar_chart(c, data, width, height_st2)
     
     # 표 바로 아래로 박스를 시작하도록 `height_st2(표 끝 위치)와 `table_down(간격)` 전달
     draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down)

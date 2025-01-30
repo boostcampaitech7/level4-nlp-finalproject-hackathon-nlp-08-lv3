@@ -41,7 +41,8 @@ def test_create_account(client):
         "username": "newuser",
         "name": "New User",
         "password": "password123",
-        "role": "user"
+        "role": "user",
+        "email": "newuser@example.com"
     })
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -52,7 +53,20 @@ def test_create_account(client):
         "username": "newuser",
         "name": "Duplicate User",
         "password": "password123",
-        "role": "user"
+        "role": "user",
+        "email": "duplicate@example.com"
+    })
+    assert response.status_code == 400
+    data = json.loads(response.data)
+    assert data['success'] == False
+
+    # 중복 이메일 케이스
+    response = client.post('/api/create_account', json={
+        "username": "anotheruser",
+        "name": "Another User",
+        "password": "password123",
+        "role": "user",
+        "email": "newuser@example.com"
     })
     assert response.status_code == 400
     data = json.loads(response.data)
@@ -142,3 +156,86 @@ def test_get_question_by_id(client):
     assert response.status_code == 404
     data = json.loads(response.data)
     assert data['success'] == False
+
+def test_bulk_feedback_submission(client):
+    # 유효한 피드백 데이터
+    valid_feedback = [
+        {
+            "question_id": 1,
+            "from_username": "user1",
+            "to_username": "user2",
+            "answer_content": "Feedback 1"
+        },
+        {
+            "question_id": 2,
+            "from_username": "user1",
+            "to_username": "user3",
+            "answer_content": "Feedback 2"
+        }
+    ]
+    response = client.post('/api/feedback/bulk', json=valid_feedback)
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+
+    # 유효하지 않은 피드백 데이터 (필드 누락)
+    invalid_feedback = [
+        {
+            "question_id": 1,
+            "from_username": "user1",
+            "to_username": "user2"
+            # answer_content 누락
+        }
+    ]
+    response = client.post('/api/feedback/bulk', json=invalid_feedback)
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    assert data['success'] == False
+
+def test_check_feedback(client):
+    # 피드백 존재 확인
+    response = client.get('/api/feedback/check?from_username=user1&to_username=user2')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+    assert data['already_submitted'] == True
+
+    # 피드백 미존재 확인
+    response = client.get('/api/feedback/check?from_username=user1&to_username=user999')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+    assert data['already_submitted'] == False
+
+def test_group_operations(client):
+    # 그룹 생성
+    response = client.post('/api/groups/create', json={"group_name": "Test Group"})
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+
+    # 그룹 목록 조회
+    response = client.get('/api/groups')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+    assert 'groups' in data
+
+    # 그룹 정보 조회
+    group_id = data['groups'][-1]['id']
+    response = client.get(f'/api/groups/{group_id}')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+
+    # 그룹 업데이트
+    response = client.put(f'/api/groups/update/{group_id}', json={"group_name": "Updated Group"})
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
+
+    # 그룹 삭제
+    response = client.delete(f'/api/groups/delete/{group_id}')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] == True
