@@ -7,3 +7,4 @@ isort>=5.9.3
 flake8>=3.9.2
 streamlit-tags>=1.0.0
 langchain-upstage>=0.6.0
+plotly>=5.3.1
