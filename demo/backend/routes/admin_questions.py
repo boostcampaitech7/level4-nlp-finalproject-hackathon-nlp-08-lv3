@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from qa_db import get_connection
+import datetime
 
 admin_questions_bp = Blueprint("admin_questions", __name__)
 
@@ -107,56 +108,70 @@ def get_question_by_id(question_id):
 def set_deadline():
     data = request.json
     deadline = data.get("deadline")
+    start_date = data.get("start_date")
     remind_days = data.get("remind_days")
     remind_time = data.get("remind_time")
-    
-    print(f"Received data: deadline={deadline}, remind_days={remind_days}, remind_time={remind_time}")
-    
-    if not deadline:
-        return jsonify({"success": False, "message": "마감일을 입력해주세요."}), 400
-        
+
+    if not all([deadline, start_date, remind_days is not None, remind_time]):
+        return jsonify({
+            "success": False,
+            "message": "필수 입력값이 누락되었습니다."
+        }), 400
+
     try:
+        start_date_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        deadline_dt = datetime.datetime.strptime(deadline, "%Y-%m-%d %H:%M:%S")
+        current_dt = datetime.datetime.now()
+
+        if start_date_dt <= current_dt:
+            return jsonify({
+                "success": False,
+                "message": "시작 기한은 현재 시점 이후로 설정해주세요."
+            }), 400
+
+        if deadline_dt <= start_date_dt:
+            return jsonify({
+                "success": False,
+                "message": "마감 기한은 시작 기한 이후로 설정해주세요."
+            }), 400
+
         conn = get_connection()
         cur = conn.cursor()
-        
-        # 트랜잭션 시작
-        conn.execute("BEGIN")
-        
-        # 기존 마감일 삭제
         cur.execute("DELETE FROM feedback_deadline")
-        
-        # 새로운 마감일과 리마인드 설정 저장
-        print("Executing SQL query with values:", (deadline, remind_days, remind_time))
         cur.execute("""
-            INSERT INTO feedback_deadline (deadline, remind_days, remind_time)
-            VALUES (?, ?, ?)
-        """, (deadline, remind_days, remind_time))
-        
-        # 트랜잭션 커밋
+            INSERT INTO feedback_deadline (start_date, deadline, remind_days, remind_time)
+            VALUES (?, ?, ?, ?)
+        """, (start_date, deadline, remind_days, remind_time))
         conn.commit()
-        return jsonify({"success": True, "message": "마감일이 설정되었습니다."})
         
+        return jsonify({
+            "success": True,
+            "message": "마감일 설정이 완료되었습니다."
+        })
     except Exception as e:
-        # 오류 발생시 롤백 및 상세 에러 로깅
         if conn:
             conn.rollback()
-        print(f"Error in set_deadline: {str(e)}")
-        return jsonify({"success": False, "message": f"설정 중 오류가 발생했습니다: {str(e)}"}), 500
-        
-    finally:
-        if conn:
-            conn.close()
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 @admin_questions_bp.route("/api/deadline", methods=["GET"])
 def get_deadline():
     conn = get_connection()
     cur = conn.cursor()
-    
-    cur.execute("SELECT deadline FROM feedback_deadline ORDER BY created_at DESC LIMIT 1")
+    cur.execute("SELECT start_date, deadline FROM feedback_deadline ORDER BY created_at DESC LIMIT 1")
     result = cur.fetchone()
     
-    conn.close()
-    
     if result:
-        return jsonify({"success": True, "deadline": result[0]})
-    return jsonify({"success": True, "deadline": None})
+        return jsonify({
+            "success": True,
+            "start_date": result[0],
+            "deadline": result[1]
+        })
+    else:
+        return jsonify({
+            "success": True,
+            "start_date": None,
+            "deadline": None
+        })
