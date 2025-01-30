@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from reminder import check_and_send_reminders
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "db/file_uploads.db")
 
@@ -31,3 +32,7 @@ def save_file_metadata(filename, file_path):
     """, (filename, file_path))
     conn.commit()
     conn.close()
+
+# 리마인더 실행
+result = check_and_send_reminders()
+print(result)

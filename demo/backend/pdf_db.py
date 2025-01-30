@@ -17,7 +17,7 @@ def init_result_db():
     # feedback.db에서 unique한 keyword 목록 가져오기
     fb_conn = get_feedback_connection()
     cur = fb_conn.cursor()
-    cur.execute("SELECT DISTINCT keyword FROM feedback_questions WHERE keyword != '' AND question_type != 'long_answer'")
+    cur.execute("SELECT DISTINCT keyword FROM feedback_questions WHERE keyword != '' AND question_type = 'single_choice'")
     keywords = [row[0] for row in cur.fetchall()]
     
     # unique 질문 ID 가져오기 (주관식)
@@ -53,10 +53,9 @@ def init_result_db():
     )
     '''
     cur.execute(create_subj_table_sql)
-
+    
     conn.commit()
     conn.close()
-    # unique 질문 ID 가져오기 (주관식)
 
 def process_feedback_data():
     # feedback.db 연결
