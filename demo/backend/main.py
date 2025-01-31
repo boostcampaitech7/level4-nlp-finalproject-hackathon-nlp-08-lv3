@@ -1,5 +1,6 @@
 import os
 import atexit
+import shutil
 from flask import Flask
 from qa_db import init_db, seed_data
 from file_db import init_db as init_file_db
@@ -28,6 +29,9 @@ app.config['DB_FOLDER'] = DB_FOLDER
 PDF_FOLDER = 'pdf'
 app.config['PDF_FOLDER'] = PDF_FOLDER
 
+DEFAULT_DATA_FOLDER = 'default_data'
+app.config['DEFAULT_DATA_FOLDER'] = DEFAULT_DATA_FOLDER
+
 # DB 초기화 및 시드 데이터 추가
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -35,6 +39,11 @@ if not os.path.exists(DB_FOLDER):
     os.makedirs(DB_FOLDER)
 if not os.path.exists(PDF_FOLDER):
     os.makedirs(PDF_FOLDER)
+
+# default_data 내부의 .db 파일을 복사하여 db 디렉토리로 초기화
+for db_file in os.listdir(DEFAULT_DATA_FOLDER):
+    if db_file.endswith('.db'):
+        shutil.copy(os.path.join(DEFAULT_DATA_FOLDER, db_file), DB_FOLDER)
         
 init_db()
 seed_data()
@@ -44,9 +53,13 @@ def cleanup():
     pdf_folder = app.config['PDF_FOLDER']
     db_folder = app.config['DB_FOLDER']
     result_db_path = os.path.join(db_folder, 'result.db')
+    feedback_db_path = os.path.join(db_folder, 'feedback.db')
+    user_db_path = os.path.join(db_folder, 'user.db')
     
     if os.path.exists(result_db_path):
         os.remove(result_db_path)
+        os.remove(feedback_db_path)
+        os.remove(user_db_path)
     if os.path.exists(pdf_folder):
         for file in os.listdir(pdf_folder):
             file_path = os.path.join(pdf_folder, file)
