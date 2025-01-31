@@ -1,10 +1,30 @@
 import streamlit as st
 import requests
+from datetime import datetime
 
 API_BASE_URL = "http://localhost:5000/api"
 
 def user_write_feedback():
     st.write("## 리뷰 작성")
+
+    # 피드백 기간 확인
+    resp = requests.get(f"{API_BASE_URL}/deadline")
+    if resp.status_code == 200 and resp.json().get("success"):
+        start_date = resp.json().get("start_date")
+        deadline = resp.json().get("deadline")
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        if not start_date or not deadline:
+            st.warning("피드백 기간이 설정되지 않았습니다. 관리자에게 문의하세요.")
+            return
+        
+        if current_time < start_date:
+            st.warning("아직 피드백 기간 전입니다.")
+            return
+            
+        if current_time > deadline:
+            st.warning("피드백 기간이 종료되었습니다.")
+            return
 
     r_u = requests.get(f"{API_BASE_URL}/users")
     if r_u.status_code == 200 and r_u.json().get("success"):
@@ -104,7 +124,4 @@ def user_write_feedback():
             st.success("리뷰 제출 완료!")
         else:
             error_msg = response.json().get("message", "리뷰 제출에 실패했습니다.")
-            if "마감" in error_msg:  # 마감 관련 에러 메시지인 경우
-                st.error("리뷰 제출 마감 기한이 지났습니다.")
-            else:
-                st.error(error_msg)
+            st.error(error_msg)

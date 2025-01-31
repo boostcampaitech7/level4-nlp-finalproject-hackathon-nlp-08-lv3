@@ -10,7 +10,7 @@ API_BASE_URL = "http://localhost:5000/api"
 def admin_manage_questions():
     st.write("## 리뷰 템플릿 관리")
     
-    tab_manage, tab_preview, tab_deadline = st.tabs(["편집", "미리보기", "마감기한"])
+    tab_manage, tab_preview, tab_deadline = st.tabs(["편집", "미리보기", "기간 설정"])
     if 'edit_completed' not in st.session_state:
         st.session_state.edit_completed = False
     if 'show_confirm' not in st.session_state:
@@ -62,10 +62,10 @@ def admin_manage_questions():
                     help="⚠️ 주의: 편집 완료 후에는 수정이 불가능합니다")
 
             keywords = st_tags(
-                label = '### 키워드 목록 작성',
+                label='### 키워드 목록 작성',
                 text='키워드를 입력하고 Enter를 누르세요',
                 value=['업적','능력','리더십','협업','태도'],
-                suggestions = [
+                suggestions=[
                     "창의성", "책임감", "효율성", "리더십", "협업", 
                     "정확성", "적응력", "분석력", "열정", "신뢰성", 
                     "시간관리", "투명성", "결정력", "성실성", 
@@ -216,58 +216,91 @@ def admin_manage_questions():
     st.markdown("---")
 
 def admin_manage_deadline():
-    st.write("### 피드백 제출 기한 설정")
+    st.write("### 피드백 제출 기간 설정")
     
     resp = requests.get(f"{API_BASE_URL}/deadline")
+    current_start_date = None
     current_deadline = None
     if resp.status_code == 200 and resp.json().get("success"):
+        current_start_date = resp.json().get("start_date")
         current_deadline = resp.json().get("deadline")
         
-    if current_deadline:
-        st.info(f"현재 설정된 마감일: {current_deadline}")
+    if current_start_date and current_deadline:
+        st.info(f"현재 설정된 기간: {current_start_date} ~ {current_deadline}")
     
+    st.write("#### 시작일 설정")
     col1, col2 = st.columns(2)
     
     with col1:
-        new_deadline = st.date_input(
-            "마감일 선택",
+        start_date = st.date_input(
+            "시작일",
             min_value=datetime.date.today()
         )
     
     with col2:
-        time_input = st.text_input(
-            "마감 시간 선택 (HH:MM 형식)",
-            value="23:59",
-            help="24시간 형식으로 입력해주세요 (예: 14:30)"
+        start_time = st.text_input(
+            "시작 시간",
+            value="09:00",
+            help="24시간 형식으로 입력해주세요 (예: 09:00)",
+            placeholder="HH:MM"
         )
         
         try:
-            hour, minute = map(int, time_input.split(':'))
+            hour, minute = map(int, start_time.split(':'))
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
                 st.error("올바른 시간 형식이 아닙니다.")
                 return
-            new_time = datetime.time(hour, minute)
+            new_start_time = datetime.time(hour, minute)
+        except:
+            st.error("HH:MM 형식으로 입력해주세요 (예: 09:00)")
+            return
+            
+    st.write("#### 마감일 설정")
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        end_date = st.date_input(
+            "마감일",
+            min_value=start_date
+        )
+    
+    with col4:
+        end_time = st.text_input(
+            "마감 시간",
+            value="23:59",
+            help="24시간 형식으로 입력해주세요 (예: 14:30)",
+            placeholder="HH:MM"
+        )
+        
+        try:
+            hour, minute = map(int, end_time.split(':'))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                st.error("올바른 시간 형식이 아닙니다.")
+                return
+            new_end_time = datetime.time(hour, minute)
         except:
             st.error("HH:MM 형식으로 입력해주세요 (예: 14:30)")
             return
     
-    st.write("### 리마인드 설정")
-    col3, col4 = st.columns(2)
+    st.write("#### 리마인드 설정")
+    col5, col6 = st.columns(2)
     
-    with col3:
+    with col5:
         remind_days = st.number_input(
             "마감일 며칠 전부터 알림을 보낼까요?",
             min_value=0,
             max_value=14,
             value=3,
+            step=1,
             help="0-14 사이로 설정해주세요"
         )
     
-    with col4:
+    with col6:
         remind_time = st.text_input(
-            "하루 중 언제 알림을 보낼까요? (HH:MM)",
-            value="09:00",
-            help="24시간 형식으로 입력해주세요(예: 09:00)"
+            "하루 중 알림 시간",
+            value="10:00",
+            help="24시간 형식으로 입력해주세요(예: 09:00)",
+            placeholder="HH:MM"
         )
         
         try:
@@ -279,11 +312,20 @@ def admin_manage_deadline():
             st.error("HH:MM 형식으로 입력해주세요 (예: 09:00)")
             return
     
-    if st.button("마감일 설정"):
-        deadline_datetime = datetime.datetime.combine(new_deadline, new_time)
+    if st.button("기간 설정"):
+        start_datetime = datetime.datetime.combine(start_date, new_start_time)
+        end_datetime = datetime.datetime.combine(end_date, new_end_time)
         current_datetime = datetime.datetime.now()
         
-        remind_start_date = deadline_datetime - datetime.timedelta(days=remind_days)
+        if start_datetime <= current_datetime:
+            st.error("시작 기한은 현재 시점 이후로 설정해주세요.")
+            return
+            
+        if end_datetime <= start_datetime:
+            st.error("마감 기한은 시작 기한 이후로 설정해주세요.")
+            return
+            
+        remind_start_date = end_datetime - datetime.timedelta(days=remind_days)
         remind_hour, remind_minute = map(int, remind_time.split(':'))
         remind_start_datetime = remind_start_date.replace(hour=remind_hour, minute=remind_minute)
         
@@ -292,13 +334,14 @@ def admin_manage_deadline():
             return
             
         payload = {
-            "deadline": deadline_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            "start_date": start_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            "deadline": end_datetime.strftime("%Y-%m-%d %H:%M:%S"),
             "remind_days": remind_days,
             "remind_time": remind_time
         }
         resp = requests.post(f"{API_BASE_URL}/deadline", json=payload)
         if resp.status_code == 200 and resp.json().get("success"):
-            st.success("마감일과 리마인드 설정이 완료되었습니다.")
+            st.success("기한 설정이 완료되었습니다.")
             time.sleep(2)
             st.rerun()
         else:
@@ -306,7 +349,7 @@ def admin_manage_deadline():
             st.error(f"설정에 실패했습니다: {error_msg}")
 
 def preview_questions():
-    st.write("## 미리보기: 동료 피드백 작성 화면")
+    st.write("### 미리보기: 동료 피드백 작성 화면")
 
     r_q = requests.get(f"{API_BASE_URL}/questions")
     if r_q.status_code == 200 and r_q.json().get("success"):
@@ -343,7 +386,14 @@ def preview_questions():
                 with col1:
                     st.markdown(f"<p style='color: #666;'><strong>{q_text}</strong></p>", unsafe_allow_html=True)
                 with col2:
-                    chosen = st.radio("", opts, key=f"{key_prefix}_radio", horizontal=True, index=None, disabled=True)
+                    chosen = st.radio(
+                        "답변 선택",
+                        opts,
+                        key=f"{key_prefix}_radio",
+                        horizontal=True,
+                        index=None,
+                        disabled=True
+                    )
                 answers[q_id] = chosen
                 st.markdown("---")
             else:
