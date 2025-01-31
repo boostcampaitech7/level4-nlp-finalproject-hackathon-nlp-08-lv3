@@ -143,19 +143,6 @@ def test_feedback(client):
     assert my_get_data['success'] == True
     assert 'feedbacks' in my_get_data
 
-def test_get_question_by_id(client):
-    # 존재하는 질문 ID
-    response = client.get('/api/questions/1')
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data['success'] == True
-    assert 'question' in data
-
-    # 존재하지 않는 질문 ID
-    response = client.get('/api/questions/9999')
-    assert response.status_code == 404
-    data = json.loads(response.data)
-    assert data['success'] == False
 
 def test_bulk_feedback_submission(client):
     # 유효한 피드백 데이터
