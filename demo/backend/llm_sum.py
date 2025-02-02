@@ -1,8 +1,8 @@
 import pandas as pd
 import re
-import os
+# import os
 import getpass
-import numpy as np
+# import numpy as np
 from langchain_upstage import UpstageDocumentParseLoader, ChatUpstage, UpstageEmbeddings
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -113,7 +113,9 @@ def normalize_tone(data_list):
                 response = llm_chain.invoke({"text": original})
                 vector1 = embedding_model.embed_query(original)
                 vector2 = embedding_model.embed_query(response)
-                if abs(vector1 - vector1) > 0.8:
+                # 벡터를 2D 배열로 변환하여 코사인 유사도 계산
+                cosine_sim = cosine_similarity([vector_1], [vector_2])[0][0]
+                if abs(cosine_sim) >= 0.8:
                     break
             tmp_lst.append(response)
         normalize_dict[key] = tmp_lst
