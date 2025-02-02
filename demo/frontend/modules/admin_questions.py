@@ -4,8 +4,58 @@ import json
 from streamlit_tags import st_tags
 import time
 import datetime
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
 
+load_dotenv()
+
+UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 API_BASE_URL = "http://localhost:5000/api"
+
+client = OpenAI(
+    api_key=UPSTAGE_API_KEY,
+    base_url="https://api.upstage.ai/v1/solar"
+)
+
+def get_question_suggestions(keyword):
+    prompt = f"""
+    당신은 직장에서 쓰일 동료 피드백 질문 생성 전문가입니다.
+    '{keyword}' 키워드와 관련된 동료 평가용 질문 3개 (객관식 2개, 주관식 1개)를 생성해주세요.
+    
+    규칙:
+    1. 각 질문은 구체적이고 명확해야 합니다
+    2. 질문과 함께 질문 유형(객관식, 주관식)도 표시해주세요
+    3. 객관식인 경우 선택지도 함께 제시해주세요
+    
+    키워드가 리더쉽인 경우
+    형식:
+    [질문1]
+    - 유형: (질문 유형)
+    - 질문: (질문 내용)
+    - (객관식일 경우) 선택지: 매우우수, 우수, 보통, 미흡, 매우미흡
+
+    객관식 예시 응답:
+    [질문1]
+    - 유형: 객관식
+    - 질문: 팀원의 역량 개발을 위해 성과와 능력을 주기적으로 점검하고 개선 방향을 제시한다. 단순 지적이 아니라 구체적이고 건설적인 피드백을 제공한다.
+    - 선택지: 매우우수, 우수, 보통, 미흡, 매우미흡
+
+    주관식 예시 응답:
+    [질문1]
+    - 유형: 주관식
+    - 질문: 팀원의 리더십 스타일은 어떠한지 구체적인 설명과 함께 작성해주세요.
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="solar-pro",
+            messages=[{"role": "user", "content": prompt}],
+            stream=False
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"질문 생성 중 오류가 발생했습니다: {str(e)}"
 
 def admin_manage_questions():
     st.write("## 리뷰 템플릿 관리")
@@ -92,8 +142,17 @@ def admin_manage_questions():
                     "long_answer": "주관식"
                 }
                 with st.expander("질문 추가하기", expanded=False):
-                    new_text = st.text_input("질문", key="new_text")
                     new_kw = st.selectbox("keyword", options=keywords, key="new_kw")
+                    
+                    if st.button("AI 질문 추천받기"):
+                        with st.spinner("AI가 키워드에 맞는 추천 질문을 생성중입니다..."):
+                            suggested_questions = get_question_suggestions(new_kw)
+                            st.text_area("추천 질문", 
+                                        value=suggested_questions, 
+                                        height=300)
+                            st.info("위의 추천 질문을 복사할 수 있습니다.")
+                    
+                    new_text = st.text_input("질문", key="new_text")
                     new_type = st.selectbox("질문 유형", 
                                         ["single_choice","multi_choice","long_answer"],
                                         key="new_type")

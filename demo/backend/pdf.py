@@ -18,6 +18,9 @@ from save_book_info import cosine_similarity
 import pickle
 from openai import OpenAI
 import requests.exceptions
+from feedback_result_summary import analyze_feedback_with_solar
+from qa_db import DB_PATH as FEEDBACK_DB_PATH
+
 
 # Solar API 설정
 SOLAR_API_KEY = os.getenv("SOLAR_API_KEY")
@@ -31,9 +34,10 @@ font_path = "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf"
 pdfmetrics.registerFont(TTFont("NanumMyeongjo", font_path))
 plt.rcParams['font.family'] = 'NanumMyeongjo'
 
-# DB 경로 설정
+# DB 경로 설정과 함께 book_chunk 경로도 설정
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
+BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
 
 # PDF가 저장될 디렉토리 지정
 pdf_output_dir = "./pdf"
@@ -191,34 +195,113 @@ def draw_radar_chart(c, data, width, height):
     c.drawImage(ImageReader(buffer), 320, height-50, width=250, height=180)
 
 # ==================================  # 4번째 블록
-# 키워드 매핑 정의
-CATEGORY_KEYWORDS = {
-    "업적": "성과",
-    "태도": "태도", 
-    "능력": "역량",
-    "리더십": "리더십",
-    "협업": "협업"
-}
-
-def find_lowest_keyword(scores):
-    """점수 리스트에서 가장 낮은 점수의 키워드를 매핑하여 반환"""
-    if not scores:
+# 주석 처리된 키워드 매핑
+# CATEGORY_KEYWORDS = {
+#     "업적": "성과",
+#     "태도": "태도", 
+#     "능력": "역량",
+#     "리더십": "리더십",
+#     "협업": "협업"
+# }
+# 직장 내에서 {성과}이 부족한 사람들을 위한 책
+def find_lowest_keyword(scores, team_average):
+    """점수 리스트에서 가장 낮은 점수의 키워드를 반환
+    동일한 최저 점수가 있을 경우 팀 평균과의 차이가 가장 큰 키워드를 반환"""
+    if not scores or not team_average:
         return None
         
-    # 가장 낮은 점수의 카테고리 찾기
-    lowest_category = min(scores, key=lambda x: float(x[1]))[0]
+    # 점수와 팀 평균을 딕셔너리로 변환
+    score_dict = {item[0]: float(item[1]) for item in scores}
+    avg_dict = {item[0]: float(item[1]) for item in team_average}
     
-    # 카테고리를 매핑된 키워드로 변환
-    return CATEGORY_KEYWORDS.get(lowest_category, lowest_category)
+    # 가장 낮은 점수 찾기
+    min_score = min(score_dict.values())
+    
+    # 가장 낮은 점수를 가진 키워드들 찾기
+    lowest_keywords = [k for k, v in score_dict.items() if v == min_score]
+    
+    if len(lowest_keywords) == 1:
+        return lowest_keywords[0]
+    
+    # 여러 개의 최저 점수가 있는 경우, 팀 평균과의 차이가 가장 큰 키워드 선택
+    max_diff = float('-inf')
+    selected_keyword = lowest_keywords[0]
+    
+    for keyword in lowest_keywords:
+        diff = avg_dict[keyword] - score_dict[keyword]
+        if diff > max_diff:
+            max_diff = diff
+            selected_keyword = keyword
+            
+    return selected_keyword
+
+def summarize_book_content(content):
+    """Solar Chat API를 사용하여 책 내용을 2-3문장으로 요약"""
+    try:
+        prompt = f"""
+다음은 책의 내용입니다. 2-3문장으로 핵심 내용을 요약해주세요:
+
+{content}
+
+요약할 때 다음 사항을 지켜주세요:
+1. 책의 핵심 주제나 메시지를 포함할 것
+2. 간결하고 명확하게 작성할 것
+3. 2-3문장으로 제한할 것
+"""
+
+        response = solar_client.chat.completions.create(
+            model="solar-pro",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            stream=False,
+            timeout=10
+        )
+        
+        summary = response.choices[0].message.content.strip()
+        return summary
+        
+    except Exception as e:
+        print(f"책 내용 요약 중 오류 발생: {str(e)}")
+        return content[:300] + "..."  # 오류 발생 시 기존 방식으로 처리
 
 def get_book_recommendation(username, lowest_keyword):
     """특정 키워드에 대한 도서 추천을 반환"""
     try:
-        print(f"\n[{username}] '{lowest_keyword}' 키워드에 대한 도서 검색 시작...")
+        # 피드백 결과 가져오기 (feedback.db 사용)
+        feedback_conn = sqlite3.connect(FEEDBACK_DB_PATH)
+        feedback_cur = feedback_conn.cursor()
         
-        # 쿼리 생성
-        detail_query = f"직장 내 팀 프로젝트에서 '{lowest_keyword}'이/가 부족한 사람들을 위한 책"
-        print(f"[{username}] 검색 쿼리: {detail_query}")
+        # 가장 낮은 점수를 받은 키워드의 주관식 답변 가져오기 (원래 키워드 그대로 사용)
+        feedback_cur.execute("""
+            SELECT q.question_text, r.answer_content
+            FROM feedback_results r
+            JOIN feedback_questions q ON r.question_id = q.id
+            WHERE r.to_username = ? 
+            AND q.keyword = ?
+            AND r.answer_content NOT IN ('매우우수', '우수', '보통', '미흡', '매우미흡')
+            ORDER BY r.created_at
+        """, (username, lowest_keyword))
+        
+        feedback_results = feedback_cur.fetchall()
+        
+        if not feedback_results:
+            print(f"[{username}] 주관식 피드백이 없습니다.")
+            return None
+            
+        # 피드백을 하나의 문자열로 결합
+        all_feedback = f"[{lowest_keyword}]\n"
+        for question, answer in feedback_results:
+            all_feedback += f"질문: {question}\n"
+            all_feedback += f"답변: {answer}\n"
+            
+        # Solar API로 피드백 분석하여 도서 검색 쿼리 생성
+        detail_query = analyze_feedback_with_solar(all_feedback)
+        print(f"[{username}] AI 분석 결과: {detail_query}")
+        print(f"\n[{username}] '{lowest_keyword}' 키워드에 대한 도서 검색 시작...")
         
         # Solar 임베딩 생성
         try:
@@ -232,17 +315,16 @@ def get_book_recommendation(username, lowest_keyword):
             print(f"[{username}] 쿼리 임베딩 생성 실패: {str(e)}")
             return None
             
-        # book_chunk 디렉토리에서 모든 청크 파일 로드
-        chunk_dir = "/data/ephemeral/home/juhyun/level4-nlp-finalproject-hackathon-nlp-08-lv3/demo/backend/book_chunk"
+        # 수정된 부분: BOOK_CHUNK_DIR 상수 사용
         best_similarity = -1
         best_book = None
         
         print(f"[{username}] book_chunk 파일 검색 중...")
         
-        for chunk_file in os.listdir(chunk_dir):
+        for chunk_file in os.listdir(BOOK_CHUNK_DIR):
             if chunk_file.startswith('books_chunk_') and chunk_file.endswith('.pkl'):
                 try:
-                    with open(os.path.join(chunk_dir, chunk_file), 'rb') as f:
+                    with open(os.path.join(BOOK_CHUNK_DIR, chunk_file), 'rb') as f:
                         chunk_data = pickle.load(f)
                         
                         # 각 책의 임베딩과 유사도 계산
@@ -266,14 +348,21 @@ def get_book_recommendation(username, lowest_keyword):
         print(f"제목: {best_book['title']}")
         print(f"유사도: {best_similarity:.4f}")
         
-        # 추천 도서 정보 포맷팅
-        recommendation = {
-            'title': best_book['title'],
-            'authors': ', '.join(best_book['authors']) if isinstance(best_book['authors'], list) else best_book['authors'],
-            'contents': best_book['contents'][:300] + "..." if len(best_book['contents']) > 300 else best_book['contents'],
-            'thumbnail': best_book.get('thumbnail')
-        }
-        return recommendation
+        # 수정된 부분: 책 내용 요약 추가
+        if best_book:
+            content_summary = summarize_book_content(best_book['contents'])
+            print(f"\n[{username}] 책 내용 요약 완료")
+            
+            recommendation = {
+                'title': best_book['title'],
+                'authors': ', '.join(best_book['authors']) if isinstance(best_book['authors'], list) else best_book['authors'],
+                'contents': content_summary,  # 요약된 내용으로 변경
+                'thumbnail': best_book.get('thumbnail'),
+                'query': detail_query
+            }
+            
+            feedback_conn.close()
+            return recommendation
         
     except Exception as e:
         print(f"[{username}] 도서 추천 중 오류 발생: {str(e)}")
@@ -330,7 +419,7 @@ def fetch_data():
                 if score:
                     scores.append([column, score[0]])
 
-            # 팀 평균 정보 가져오기
+            # 수정된 부분: team_average를 먼저 가져온 후 lowest_keyword 찾기
             team_average = []
             for column in columns:
                 result_cur.execute(f"SELECT {column} FROM multiple WHERE to_username = 'average'")
@@ -338,8 +427,8 @@ def fetch_data():
                 if avg_score:
                     team_average.append([column, avg_score[0]])
             
-            # 가장 낮은 점수의 키워드 찾기
-            lowest_keyword = find_lowest_keyword(scores)
+            # 가장 낮은 점수의 키워드 찾기 (team_average 전달)
+            lowest_keyword = find_lowest_keyword(scores, team_average)
             print(f"\n[{username}] 가장 낮은 점수의 키워드: {lowest_keyword}")
             
             # 도서 추천 가져오기
@@ -453,7 +542,7 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
     title = Paragraph(book_info.get('title', ''), title_style)
     title.wrapOn(c, box_width2 - 40, 30)
     title.drawOn(c, content_x, current_y)
-    current_y -= 25  # 다음 요소를 위한 간격
+    current_y -= 15  # 다음 요소를 위한 간격
 
     # 2. 저자
     authors = Paragraph(f"저자: {book_info.get('authors', '')}", text_style)
@@ -462,8 +551,8 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
     current_y -= 10  # 다음 요소를 위한 간격
 
     # 3. 책 이미지
-    img_width = 120
-    img_height = 160
+    img_width = 90
+    img_height = 120
     
     if book_info.get('thumbnail'):
         try:
