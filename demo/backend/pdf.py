@@ -28,9 +28,6 @@ USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
 
-# PDF가 저장될 디렉토리 지정
-pdf_output_dir = "./pdf"
-
 # 특정 파일이 없을 경우, 특정 파이썬 스크립트를 실행
 def run_script_if_file_not_exists(file_name, script_name):
     if not os.path.exists(file_name):
