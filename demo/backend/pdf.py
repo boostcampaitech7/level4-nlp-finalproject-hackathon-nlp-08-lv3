@@ -14,20 +14,9 @@ import sqlite3
 import os
 from subprocess import run
 from llm_sum import summarize_multiple
-from save_book_info import cosine_similarity
-import pickle
-from openai import OpenAI
 import requests.exceptions
-from feedback_result_summary import analyze_feedback_with_solar
-from qa_db import DB_PATH as FEEDBACK_DB_PATH
+from book_recommendation import get_book_recommendation, find_lowest_keyword
 
-
-# Solar API 설정
-SOLAR_API_KEY = os.getenv("SOLAR_API_KEY")
-solar_client = OpenAI(
-    api_key=SOLAR_API_KEY,
-    base_url="https://api.upstage.ai/v1/solar"
-)
 
 # 한글 폰트 등록
 font_path = "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf"
@@ -38,9 +27,6 @@ plt.rcParams['font.family'] = 'NanumMyeongjo'
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
-
-# PDF가 저장될 디렉토리 지정
-pdf_output_dir = "./pdf"
 
 # 특정 파일이 없을 경우, 특정 파이썬 스크립트를 실행
 def run_script_if_file_not_exists(file_name, script_name):
@@ -194,180 +180,6 @@ def draw_radar_chart(c, data, width, height):
 
     c.drawImage(ImageReader(buffer), 320, height-50, width=250, height=180)
 
-# ==================================  # 4번째 블록
-# 주석 처리된 키워드 매핑
-# CATEGORY_KEYWORDS = {
-#     "업적": "성과",
-#     "태도": "태도", 
-#     "능력": "역량",
-#     "리더십": "리더십",
-#     "협업": "협업"
-# }
-# 직장 내에서 {성과}이 부족한 사람들을 위한 책
-def find_lowest_keyword(scores, team_average):
-    """점수 리스트에서 가장 낮은 점수의 키워드를 반환
-    동일한 최저 점수가 있을 경우 팀 평균과의 차이가 가장 큰 키워드를 반환"""
-    if not scores or not team_average:
-        return None
-        
-    # 점수와 팀 평균을 딕셔너리로 변환
-    score_dict = {item[0]: float(item[1]) for item in scores}
-    avg_dict = {item[0]: float(item[1]) for item in team_average}
-    
-    # 가장 낮은 점수 찾기
-    min_score = min(score_dict.values())
-    
-    # 가장 낮은 점수를 가진 키워드들 찾기
-    lowest_keywords = [k for k, v in score_dict.items() if v == min_score]
-    
-    if len(lowest_keywords) == 1:
-        return lowest_keywords[0]
-    
-    # 여러 개의 최저 점수가 있는 경우, 팀 평균과의 차이가 가장 큰 키워드 선택
-    max_diff = float('-inf')
-    selected_keyword = lowest_keywords[0]
-    
-    for keyword in lowest_keywords:
-        diff = avg_dict[keyword] - score_dict[keyword]
-        if diff > max_diff:
-            max_diff = diff
-            selected_keyword = keyword
-            
-    return selected_keyword
-
-def summarize_book_content(content):
-    """Solar Chat API를 사용하여 책 내용을 2-3문장으로 요약"""
-    try:
-        prompt = f"""
-다음은 책의 내용입니다. 2-3문장으로 핵심 내용을 요약해주세요:
-
-{content}
-
-요약할 때 다음 사항을 지켜주세요:
-1. 책의 핵심 주제나 메시지를 포함할 것
-2. 간결하고 명확하게 작성할 것
-3. 2-3문장으로 제한할 것
-"""
-
-        response = solar_client.chat.completions.create(
-            model="solar-pro",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            stream=False,
-            timeout=10
-        )
-        
-        summary = response.choices[0].message.content.strip()
-        return summary
-        
-    except Exception as e:
-        print(f"책 내용 요약 중 오류 발생: {str(e)}")
-        return content[:300] + "..."  # 오류 발생 시 기존 방식으로 처리
-
-def get_book_recommendation(username, lowest_keyword):
-    """특정 키워드에 대한 도서 추천을 반환"""
-    try:
-        # 피드백 결과 가져오기 (feedback.db 사용)
-        feedback_conn = sqlite3.connect(FEEDBACK_DB_PATH)
-        feedback_cur = feedback_conn.cursor()
-        
-        # 가장 낮은 점수를 받은 키워드의 주관식 답변 가져오기 (원래 키워드 그대로 사용)
-        feedback_cur.execute("""
-            SELECT q.question_text, r.answer_content
-            FROM feedback_results r
-            JOIN feedback_questions q ON r.question_id = q.id
-            WHERE r.to_username = ? 
-            AND q.keyword = ?
-            AND r.answer_content NOT IN ('매우우수', '우수', '보통', '미흡', '매우미흡')
-            ORDER BY r.created_at
-        """, (username, lowest_keyword))
-        
-        feedback_results = feedback_cur.fetchall()
-        
-        if not feedback_results:
-            print(f"[{username}] 주관식 피드백이 없습니다.")
-            return None
-            
-        # 피드백을 하나의 문자열로 결합
-        all_feedback = f"[{lowest_keyword}]\n"
-        for question, answer in feedback_results:
-            all_feedback += f"질문: {question}\n"
-            all_feedback += f"답변: {answer}\n"
-            
-        # Solar API로 피드백 분석하여 도서 검색 쿼리 생성
-        detail_query = analyze_feedback_with_solar(all_feedback)
-        print(f"[{username}] AI 분석 결과: {detail_query}")
-        print(f"\n[{username}] '{lowest_keyword}' 키워드에 대한 도서 검색 시작...")
-        
-        # Solar 임베딩 생성
-        try:
-            query_embedding_response = solar_client.embeddings.create(
-                input=detail_query,
-                model="embedding-query",
-                timeout=5
-            )
-            query_embedding = query_embedding_response.data[0].embedding
-        except Exception as e:
-            print(f"[{username}] 쿼리 임베딩 생성 실패: {str(e)}")
-            return None
-            
-        # 수정된 부분: BOOK_CHUNK_DIR 상수 사용
-        best_similarity = -1
-        best_book = None
-        
-        print(f"[{username}] book_chunk 파일 검색 중...")
-        
-        for chunk_file in os.listdir(BOOK_CHUNK_DIR):
-            if chunk_file.startswith('books_chunk_') and chunk_file.endswith('.pkl'):
-                try:
-                    with open(os.path.join(BOOK_CHUNK_DIR, chunk_file), 'rb') as f:
-                        chunk_data = pickle.load(f)
-                        
-                        # 각 책의 임베딩과 유사도 계산
-                        for book_data in chunk_data.values():
-                            book_embedding = book_data.get('embedding')
-                            if book_embedding:
-                                similarity = cosine_similarity(query_embedding, book_embedding)
-                                if similarity > best_similarity:
-                                    best_similarity = similarity
-                                    best_book = book_data
-                                    
-                except Exception as e:
-                    print(f"[{username}] 청크 파일 '{chunk_file}' 처리 중 오류: {str(e)}")
-                    continue
-        
-        if not best_book:
-            print(f"[{username}] 적합한 도서를 찾지 못했습니다.")
-            return None
-            
-        print(f"\n[{username}] 최적의 도서를 찾았습니다:")
-        print(f"제목: {best_book['title']}")
-        print(f"유사도: {best_similarity:.4f}")
-        
-        # 수정된 부분: 책 내용 요약 추가
-        if best_book:
-            content_summary = summarize_book_content(best_book['contents'])
-            print(f"\n[{username}] 책 내용 요약 완료")
-            
-            recommendation = {
-                'title': best_book['title'],
-                'authors': ', '.join(best_book['authors']) if isinstance(best_book['authors'], list) else best_book['authors'],
-                'contents': content_summary,  # 요약된 내용으로 변경
-                'thumbnail': best_book.get('thumbnail'),
-                'query': detail_query
-            }
-            
-            feedback_conn.close()
-            return recommendation
-        
-    except Exception as e:
-        print(f"[{username}] 도서 추천 중 오류 발생: {str(e)}")
-        return None
-
 def fetch_data():
     user_conn = get_user_connection()
     result_conn = get_result_connection()
@@ -431,7 +243,7 @@ def fetch_data():
             lowest_keyword = find_lowest_keyword(scores, team_average)
             print(f"\n[{username}] 가장 낮은 점수의 키워드: {lowest_keyword}")
             
-            # 도서 추천 가져오기
+            # book_recommendation.py의 함수 호출
             book_recommendation = get_book_recommendation(username, lowest_keyword)
 
             all_user_data.append({
@@ -542,13 +354,13 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
     title = Paragraph(book_info.get('title', ''), title_style)
     title.wrapOn(c, box_width2 - 40, 30)
     title.drawOn(c, content_x, current_y)
-    current_y -= 15  # 다음 요소를 위한 간격
+    current_y -= 25 # 다음 요소를 위한 간격
 
     # 2. 저자
     authors = Paragraph(f"저자: {book_info.get('authors', '')}", text_style)
     authors.wrapOn(c, box_width2 - 40, 20)
     authors.drawOn(c, content_x, current_y)
-    current_y -= 10  # 다음 요소를 위한 간격
+    current_y -= 5  # 다음 요소를 위한 간격
 
     # 3. 책 이미지
     img_width = 90
@@ -562,7 +374,7 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
                 c.drawImage(img, content_x, current_y - img_height, width=img_width, height=img_height)
         except Exception as e:
             print(f"이미지 로드 실패: {str(e)}")
-    current_y -= (img_height + 20)  # 이미지 높이 + 간격
+    current_y -= (img_height + 50)  # 이미지 높이 + 간격
 
     # 4. 내용 요약
     content_text = book_info.get('contents', '')
@@ -606,7 +418,6 @@ def generate_pdf(data, filename):
     c.save()
     print(f"PDF 생성 완료: {filename}")
 # ===================
-
 
 if __name__ == "__main__":
     users_data = fetch_data()

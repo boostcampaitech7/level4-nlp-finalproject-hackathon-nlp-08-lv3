@@ -12,14 +12,14 @@ load_dotenv()
 
 # API 키 설정
 KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
-SOLAR_API_KEY = os.getenv("SOLAR_API_KEY")
+UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BOOK_CHUNK_DIR = os.path.join(BASE_DIR, "book_chunk")
 
 # Solar Embeddings 클라이언트 설정
 solar_client = OpenAI(
-    api_key=SOLAR_API_KEY,
+    api_key=UPSTAGE_API_KEY,
     base_url="https://api.upstage.ai/v1/solar"
 )
 
