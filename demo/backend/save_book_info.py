@@ -14,6 +14,9 @@ load_dotenv()
 KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
 SOLAR_API_KEY = os.getenv("SOLAR_API_KEY")
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BOOK_CHUNK_DIR = os.path.join(BASE_DIR, "book_chunk")
+
 # Solar Embeddings 클라이언트 설정
 solar_client = OpenAI(
     api_key=SOLAR_API_KEY,
@@ -24,7 +27,12 @@ solar_client = OpenAI(
 search_keywords = [
     '업적', '능력', '협업심', '리더십', '태도', '경영', '자기계발', 
     '성공', '비즈니스', '인문', '소설', '과학', '예술', '역사', 
-    '철학', '심리', '교육', '문화', '정치', '경제'
+    '철학', '심리', '교육', '문화', '정치', '경제', '창의성',
+    '책임감', '효율성', '리더십', '협업', '정확성', '적응력',
+    '분석력', '열정', '신뢰성', '시간관리', '투명성', '결정력',
+    '성실성', '문제해결', '전문성', '의사소통', '동기부여', '감정지능', '팀워크',
+    '멘토링', '자기계발', '유연성', '갈등관리', '목표달성', '학습', '공감',
+    '창조성', '전략'
 ]
 
 def cosine_similarity(vec1, vec2):
@@ -82,17 +90,19 @@ def create_embedding(text, timeout=5):
         return None
 
 def load_existing_books():
-    """기존에 저장된 도서 데이터를 로드하는 함수"""
-    try:
-        with open('all_books.pkl', 'rb') as f:
-            return pickle.load(f)
-    except FileNotFoundError:
-        return {}
-
-def save_books(books_data):
-    """도서 데이터를 저장하는 함수"""
-    with open('all_books.pkl', 'wb') as f:
-        pickle.dump(books_data, f)
+    """청크 파일들로부터 모든 도서 데이터를 로드하는 함수"""
+    all_books = {}
+    
+    for chunk_file in os.listdir(BOOK_CHUNK_DIR):
+        if chunk_file.startswith('books_chunk_') and chunk_file.endswith('.pkl'):
+            try:
+                with open(os.path.join(BOOK_CHUNK_DIR, chunk_file), 'rb') as f:
+                    chunk_data = pickle.load(f)
+                    all_books.update(chunk_data)
+            except Exception as e:
+                print(f"경고: 청크 파일 '{chunk_file}' 로드 중 오류 발생: {str(e)}")
+    
+    return all_books
 
 def load_progress():
     """진행 상황을 로드하는 함수"""
@@ -117,19 +127,18 @@ def process_and_save_books_in_chunks():
     processed_isbns = set()
     total_processed = 0
     
-    # 저장 경로 설정
-    save_dir = "/data/ephemeral/home/juhyun/level4-nlp-finalproject-hackathon-nlp-08-lv3/demo/backend/book_chunk"
-    os.makedirs(save_dir, exist_ok=True)
+    # 저장 디렉토리 생성
+    os.makedirs(BOOK_CHUNK_DIR, exist_ok=True)
     
     print("\n=== 도서 정보 수집 시작 ===")
     print(f"청크 크기: {chunk_size}")
     
     # 기존 처리된 ISBN 로드 부분 수정
     print("\n1. 기존 처리된 도서 정보 로드 중...")
-    for chunk_file in tqdm(os.listdir(save_dir), desc="청크 파일 검사"):
+    for chunk_file in tqdm(os.listdir(BOOK_CHUNK_DIR), desc="청크 파일 검사"):
         if chunk_file.startswith('books_chunk_') and chunk_file.endswith('.pkl'):
             try:
-                with open(os.path.join(save_dir, chunk_file), 'rb') as f:
+                with open(os.path.join(BOOK_CHUNK_DIR, chunk_file), 'rb') as f:
                     chunk_data = pickle.load(f)
                     processed_isbns.update(chunk_data.keys())
             except Exception as e:
@@ -143,7 +152,7 @@ def process_and_save_books_in_chunks():
     print(f"- 키워드 목록: {', '.join(unique_keywords)}")
     
     try:
-        chunk_number = len([f for f in os.listdir(save_dir) if f.startswith('books_chunk_')])
+        chunk_number = len([f for f in os.listdir(BOOK_CHUNK_DIR) if f.startswith('books_chunk_')])
         print(f"\n3. 청크 처리 시작 (현재 청크 번호: {chunk_number})")
         
         for keyword_idx, keyword in enumerate(unique_keywords, 1):
@@ -282,8 +291,7 @@ def process_chunk(books):
 def save_chunk(books_chunk, chunk_number):
     """청크 데이터를 파일로 저장하는 함수"""
     if books_chunk:  # 청크에 데이터가 있는 경우에만 저장
-        save_dir = "/data/ephemeral/home/juhyun/level4-nlp-finalproject-hackathon-nlp-08-lv3/demo/backend/book_chunk"
-        chunk_filename = os.path.join(save_dir, f'books_chunk_{chunk_number}.pkl')
+        chunk_filename = os.path.join(BOOK_CHUNK_DIR, f'books_chunk_{chunk_number}.pkl')
         with open(chunk_filename, 'wb') as f:
             pickle.dump(books_chunk, f)
         print(f"청크 {chunk_number} 저장 완료 (도서 {len(books_chunk)}개)")
