@@ -16,7 +16,7 @@ from subprocess import run
 from llm_sum import summarize_multiple
 import requests.exceptions
 from book_recommendation import get_book_recommendation, find_lowest_keyword
-
+from send_email import send_report_emails
 
 # 한글 폰트 등록
 font_path = "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf"
@@ -27,6 +27,7 @@ plt.rcParams['font.family'] = 'NanumMyeongjo'
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
+PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf")
 
 # 특정 파일이 없을 경우, 특정 파이썬 스크립트를 실행
 def run_script_if_file_not_exists(file_name, script_name):
@@ -388,12 +389,11 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
 # ==================================
 def generate_pdf(data, filename):
     # pdf 디렉토리가 없으면 생성
-    pdf_dir = os.path.join(os.path.dirname(__file__), "pdf")
-    if not os.path.exists(pdf_dir):
-        os.makedirs(pdf_dir)
+    if not os.path.exists(PDF_DIR):
+        os.makedirs(PDF_DIR)
         
     # pdf 디렉토리 안에 파일 생성
-    filepath = os.path.join(pdf_dir, filename)
+    filepath = os.path.join(PDF_DIR, filename)
     c = canvas.Canvas(filepath, pagesize=A4)
     width, height = A4
     
@@ -426,4 +426,11 @@ if __name__ == "__main__":
             'title': "인사고과 평가표",
             'team_opinion': "소속 팀 의견",
         })
-        generate_pdf(user_data, f"{user_data['username']}.pdf")
+
+        filename = f"{user_data['username']}.pdf"
+        generate_pdf(user_data, filename)
+    
+    # PDF 생성이 완료된 후 이메일 전송
+    print("\n이메일을 전송 중입니다...")
+    send_report_emails()
+    print("이메일 전송을 완료했습니다.")
