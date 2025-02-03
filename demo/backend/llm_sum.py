@@ -114,7 +114,7 @@ def normalize_tone(data_list):
                 vector1 = embedding_model.embed_query(original)
                 vector2 = embedding_model.embed_query(response)
                 # 벡터를 2D 배열로 변환하여 코사인 유사도 계산
-                cosine_sim = cosine_similarity([vector_1], [vector_2])[0][0]
+                cosine_sim = cosine_similarity([vector1], [vector2])[0][0]
                 if abs(cosine_sim) >= 0.8:
                     break
             tmp_lst.append(response)
