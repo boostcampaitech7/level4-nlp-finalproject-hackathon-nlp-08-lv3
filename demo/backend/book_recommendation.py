@@ -81,17 +81,16 @@ def find_lowest_keyword(scores, team_average):
     return selected_keyword
 
 def summarize_book_content(content):
-    """Solar Chat API를 사용하여 책 내용을 2-3문장으로 요약"""
+    """Solar Chat API를 사용하여 책 내용을 요약"""
     try:
         prompt = f"""
-다음은 책의 내용입니다. 2-3문장으로 핵심 내용을 요약해주세요:
+다음은 책의 내용입니다. 핵심 내용을 요약해주세요:
 
 {content}
 
 요약할 때 다음 사항을 지켜주세요:
 1. 책의 핵심 주제나 메시지를 포함할 것
 2. 간결하고 명확하게 작성할 것
-3. 2-3문장으로 제한할 것
 """
 
         response = solar_client.chat.completions.create(
@@ -160,9 +159,9 @@ def get_book_recommendation(username, lowest_keyword):
             print(f"[{username}] 쿼리 임베딩 생성 실패: {str(e)}")
             return None
             
-        # 수정된 부분: BOOK_CHUNK_DIR 상수 사용
-        best_similarity = -1
-        best_book = None
+        # 수정된 부분: 상위 2개의 책을 저장할 리스트
+        best_books = []
+        similarities = []
         
         print(f"[{username}] book_chunk 파일 검색 중...")
         
@@ -177,38 +176,51 @@ def get_book_recommendation(username, lowest_keyword):
                             book_embedding = book_data.get('embedding')
                             if book_embedding:
                                 similarity = cosine_similarity(query_embedding, book_embedding)
-                                if similarity > best_similarity:
-                                    best_similarity = similarity
-                                    best_book = book_data
+                                # 상위 2개 책 관리
+                                if len(best_books) < 2:
+                                    best_books.append(book_data)
+                                    similarities.append(similarity)
+                                    # 정렬
+                                    if len(best_books) == 2:
+                                        if similarities[0] < similarities[1]:
+                                            best_books[0], best_books[1] = best_books[1], best_books[0]
+                                            similarities[0], similarities[1] = similarities[1], similarities[0]
+                                elif similarity > similarities[1]:
+                                    best_books[1] = book_data
+                                    similarities[1] = similarity
+                                    # 정렬
+                                    if similarities[1] > similarities[0]:
+                                        best_books[0], best_books[1] = best_books[1], best_books[0]
+                                        similarities[0], similarities[1] = similarities[1], similarities[0]
                                     
                 except Exception as e:
                     print(f"[{username}] 청크 파일 '{chunk_file}' 처리 중 오류: {str(e)}")
                     continue
         
-        if not best_book:
+        if not best_books:
             print(f"[{username}] 적합한 도서를 찾지 못했습니다.")
             return None
-            
-        print(f"\n[{username}] 최적의 도서를 찾았습니다:")
-        print(f"제목: {best_book['title']}")
-        print(f"유사도: {best_similarity:.4f}")
         
-        # 수정된 부분: 책 내용 요약 추가
-        if best_book:
-            content_summary = summarize_book_content(best_book['contents'])
-            print(f"\n[{username}] 책 내용 요약 완료")
+        recommendations = []
+        for i, (book, similarity) in enumerate(zip(best_books, similarities)):
+            print(f"\n[{username}] {i+1}번째 추천 도서:")
+            print(f"제목: {book['title']}")
+            print(f"유사도: {similarity:.4f}")
             
-            recommendation = {
-                'title': best_book['title'],
-                'authors': ', '.join(best_book['authors']) if isinstance(best_book['authors'], list) else best_book['authors'],
-                'contents': content_summary,  # 요약된 내용으로 변경
-                'thumbnail': best_book.get('thumbnail'),
+            content_summary = summarize_book_content(book['contents'])
+            
+            recommendations.append({
+                'title': book['title'],
+                'authors': ', '.join(book['authors']) if isinstance(book['authors'], list) else book['authors'],
+                'contents': content_summary,
+                'thumbnail': book.get('thumbnail'),
                 'query': detail_query
-            }
-            
-            feedback_conn.close()
-            return recommendation
+            })
+        
+        feedback_conn.close()
+        return recommendations
         
     except Exception as e:
         print(f"[{username}] 도서 추천 중 오류 발생: {str(e)}")
         return None
+    

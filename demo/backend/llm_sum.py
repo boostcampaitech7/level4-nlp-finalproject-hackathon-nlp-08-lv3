@@ -50,7 +50,7 @@ def summarize_multiple(data_list):
     
     return trans_response
 
-def summarize_subjective(data_list):
+def summarize_subjective(data_list): # 한 사람의 데이터만 들어옴, key: 질문 번호, value: 답변 리스트
     """
     주관식 문항 요약 함수, 추후 pdf.py에 합쳐보고 수정 필요
     """
@@ -62,24 +62,24 @@ def summarize_subjective(data_list):
     prompt_template = PromptTemplate.from_template(
         """
         The characteristics below are assessments of someone's competence.
-        Write a 3-line description based on the scores below. But please exclude the scores from the description.
+        Write a 2-line description based on the scores below. One for assessment and one for improvement.
+        But please exclude the scores from the description.
         ---
         TEXT: {text}
         """
     )
     llm_chain = prompt_template | llm | StrOutputParser()
     
-    solar_text = f"""
-    characteristic1: {data_dict.get('q_28')}
-    characteristic2: {data_dict.get('q_29')}
-    characteristic3: {data_dict.get('q_30')}
-    characteristic4: {data_dict.get('q_31')}
-    characteristic5: {data_dict.get('q_32')}
-    """
-    
-    response = llm_chain.invoke({"text": solar_text})
-    
-    return response
+    responses = []
+
+    # 'q_'로 시작하는 키들을 찾아 하나씩 LLM에게 전달
+    for idx, key in enumerate(sorted(data_dict.keys())):
+        if key.startswith("q_"):
+            solar_text = f"characteristic{idx + 1}: {data_dict[key]}"
+            response = llm_chain.invoke({"text": solar_text})
+            responses.append(response)
+
+    return responses
 
 
 def normalize_tone(data_list):
@@ -114,7 +114,7 @@ def normalize_tone(data_list):
                 vector1 = embedding_model.embed_query(original)
                 vector2 = embedding_model.embed_query(response)
                 # 벡터를 2D 배열로 변환하여 코사인 유사도 계산
-                cosine_sim = cosine_similarity([vector_1], [vector_2])[0][0]
+                cosine_sim = cosine_similarity([vector1], [vector2])[0][0]
                 if abs(cosine_sim) >= 0.8:
                     break
             tmp_lst.append(response)
