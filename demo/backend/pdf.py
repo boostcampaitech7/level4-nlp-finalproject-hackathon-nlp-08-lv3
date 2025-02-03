@@ -13,10 +13,11 @@ import matplotlib.font_manager as fm
 import sqlite3
 import os
 from subprocess import run
-from llm_sum import summarize_multiple
+from llm_sum import summarize_multiple, summarize_subjective
 import requests.exceptions
 from book_recommendation import get_book_recommendation, find_lowest_keyword
 from send_email import send_report_emails
+
 
 # 한글 폰트 등록
 font_path = "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf"
@@ -42,7 +43,7 @@ def get_user_connection():
 def get_result_connection():
     return sqlite3.connect(RESULT_DB_PATH)
 
-# ==================================  # 1번째 블록
+# ==================================  '인사평가표 제목', 이름 , 직급 => 완료
 def draw_header(c, data, width, height):
     c.setFont("NanumMyeongjo", 20)
     c.drawString(50, height + 40, data['title'])
@@ -52,7 +53,7 @@ def draw_header(c, data, width, height):
     c.setFont("NanumMyeongjo", 12)
     c.drawString(100, height, data['position'])
 
-# ==================================  # 2번째 블록
+# ==================================  # 한줄평가, 등급
 def draw_assessment_box(c, data, width, height):
     
     mul_result = summarize_multiple(data['scores'])
@@ -112,7 +113,7 @@ def draw_grade_box(c, data, width, height):
     paragraph.wrapOn(c, box_width - 20, box_height - 20)
     paragraph.drawOn(c, box_x + 10, box_y + 50)
 
-# ==================================  # 3번째 블록
+# ==================================  # 표, 막대그래프 => 완료
 def draw_table(c, data, width, height):
     table_data = [
         ["평가항목", "점수 (5점 만점)"],
@@ -131,56 +132,64 @@ def draw_table(c, data, width, height):
     ]))
     table.wrapOn(c, width, height)
     table.drawOn(c, 50, height)
-
-def draw_radar_chart(c, data, width, height):
-    scores = data['scores']
-    labels = [score[0] for score in scores]
-    values = [float(score[1]) for score in scores]
-
-    team_average = data['team_average']
-    team_average_values = [float(score[1]) for score in team_average]
-
-    num_vars = len(labels)
-    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-    values += values[:1]  # 점수를 닫기 위해 첫 번째 값을 마지막에 추가
-    team_average_values += team_average_values[:1]  # 팀 평균도 동일하게 추가
-    angles += angles[:1]  # 각도도 동일하게 추가
-
-    # 레이더 차트 그리기
-    fig, ax = plt.subplots(figsize=(4.8, 3), subplot_kw={'polar': True})
     
-    # 개인 점수 플롯
-    ax.fill(angles, values, color='red', alpha=0.25, label="개인 점수")
-    ax.plot(angles, values, color='red', linewidth=2)
+def draw_difference_chart(c, data, width, height):
 
-    # 팀 평균 점수 플롯
-    ax.fill(angles, team_average_values, color='gray', alpha=0.25, label="팀 평균 점수")
-    ax.plot(angles, team_average_values, color='gray', linewidth=2)
+    prop = fm.FontProperties(fname=font_path, size=14)
 
-    ax.set_yticklabels([])
-    ax.set_xticks(angles[:-1])
+    # 데이터 준비
+    labels = [score[0] for score in data['scores']]
+    values = np.array([float(score[1]) for score in data['scores']])
+    team_values = np.array([float(score[1]) for score in data['team_average']])
 
+    # 팀 평균 대비 차이 계산
+    difference = values - team_values
+
+    # 가장 잘한 항목과 가장 부족한 항목 찾기
+    best_category = labels[np.argmax(difference)]
+    worst_category = labels[np.argmin(difference)]
+
+    # 그래프 크기 조정
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    # 색상 설정 (잘한 것은 초록색, 부족한 것은 빨간색 강조)
+    colors = ['darkgreen' if label == best_category else 'darkred' if label == worst_category else 'green' if diff > 0 else 'red' for label, diff in zip(labels, difference)]
     
-    font_prop = fm.FontProperties(fname=font_path)
-    ax.set_xticklabels(labels, fontsize=8, fontproperties=font_prop)
-    ax.set_theta_offset(np.pi / 2)
-    ax.set_theta_direction(-1)
+    ax.barh(labels, difference, color=colors, alpha=0.7)
+    ax.axvline(0, color='black', linewidth=1)  # 중앙선 추가
 
-    # 범례 추가
-    ax.legend(loc='upper left', bbox_to_anchor=(-0.9, 1.1), fontsize=8, prop=font_prop, frameon=True)
+    # **텍스트 라벨 추가 (강점/약점 강조)**
+    for i, (label, v) in enumerate(zip(labels, difference)):
+        ha = 'left' if v > 0 else 'right'
+        color = "green" if label == best_category else "red" if label == worst_category else "black"
+        text = "강점" if label == best_category else "약점" if label == worst_category else ""
+        # ax.text(v, i, f"{v:.1f}", ha=ha, va='center', fontsize=12, fontweight='bold', color='black', fontproperties=prop)  # 숫자
+        ax.text(v + (0.1 if v > 0 else -0.2), i, text, ha=ha, va='center', fontsize=14, fontweight='bold', color=color, fontproperties=prop)  # 강점/약점
 
-    # 그래프 전체 위치 조정
-    fig.subplots_adjust(left=0.2, right=0.9, top=0.9, bottom=0.3)
+    # X축 범위 자동 조정
+    abs_max = max(abs(difference.min()), abs(difference.max()))
+    ax.set_xlim(-abs_max - 0.5, abs_max + 0.5)
 
+    # **그래프 상단에 "평균보다 낮음/높음" 표시 (더 크게 & 중앙 정렬)**
+    ax.text(0, len(labels), "내 점수가 평균보다 낮음    |    내 점수가 평균보다 높음", fontsize=14, color="black", fontweight="bold", ha="center", fontproperties=prop)
 
-    # plt.tight_layout()
+    # **Y축 레이블 유지**
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels, fontproperties=prop, fontsize=12)
+
+    # 그리드 스타일 조정
+    ax.grid(axis='x', linestyle='--', alpha=0.5)
+
+    # 그래프 저장 및 PDF 삽입
     buffer = BytesIO()
-    plt.savefig(buffer, format='png', dpi=72, facecolor='white')
+    plt.savefig(buffer, format="png", dpi=100, facecolor="white", bbox_inches="tight")
     plt.close()
     buffer.seek(0)
 
-    c.drawImage(ImageReader(buffer), 320, height-50, width=250, height=180)
+    # PDF에 이미지 추가
+    c.drawImage(ImageReader(buffer), width-50-250-10, height-30, width=250, height=180)
 
+# ==================================  # 사용자 정보 가져오기
 def fetch_data():
     user_conn = get_user_connection()
     result_conn = get_result_connection()
@@ -224,17 +233,17 @@ def fetch_data():
 
             # 점수 정보 가져오기
             result_cur.execute("PRAGMA table_info(multiple)")
-            columns = [col[1] for col in result_cur.fetchall() if col[1] not in ('id', 'to_username', '총합', '등급', 'created_at')]
+            mul_columns = [col[1] for col in result_cur.fetchall() if col[1] not in ('id', 'to_username', '총합', '등급', 'created_at')]
             scores = []
-            for column in columns:
+            for column in mul_columns:
                 result_cur.execute(f"SELECT {column} FROM multiple WHERE to_username = ?", (username,))
                 score = result_cur.fetchone()
                 if score:
                     scores.append([column, score[0]])
 
-            # 수정된 부분: team_average를 먼저 가져온 후 lowest_keyword 찾기
+            # team_average를 먼저 가져온 후 lowest_keyword 찾기
             team_average = []
-            for column in columns:
+            for column in mul_columns:
                 result_cur.execute(f"SELECT {column} FROM multiple WHERE to_username = 'average'")
                 avg_score = result_cur.fetchone()
                 if avg_score:
@@ -243,6 +252,18 @@ def fetch_data():
             # 가장 낮은 점수의 키워드 찾기 (team_average 전달)
             lowest_keyword = find_lowest_keyword(scores, team_average)
             print(f"\n[{username}] 가장 낮은 점수의 키워드: {lowest_keyword}")
+            
+            # 주관식 문항 가져오기
+            result_cur.execute("PRAGMA table_info(subjective)")
+            sub_rows = [row[1] for row in result_cur.fetchall() if row[1] not in ('id', 'to_username', 'created_at')]
+            team_opinion = []
+            for row in sub_rows:
+                result_cur.execute(f"SELECT {row} FROM subjective WHERE to_username = ?", (username,))
+                opinion = result_cur.fetchall()  # 모든 결과를 가져옴
+                
+                if opinion:  # opinion이 비어있지 않을 때
+                    for value in opinion:  # 여러 개의 행을 처리
+                        team_opinion.append([row, value[0]])  # 첫 번째 컬럼 값을 리스트에 추가
             
             # book_recommendation.py의 함수 호출
             book_recommendation = get_book_recommendation(username, lowest_keyword)
@@ -255,6 +276,7 @@ def fetch_data():
                 'scores': scores,
                 'team_average': team_average,
                 'total_score': total_score,
+                'team_opinion': team_opinion,
                 'book_recommendation': book_recommendation
             })
 
@@ -264,7 +286,50 @@ def fetch_data():
         
     return all_user_data
 
-def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down):
+# ==================================  # 팀 의견
+def draw_team_opinion(c, data, width, height, table_down):
+    
+    sub_result = summarize_subjective(data['team_opinion'])
+    
+    styles = getSampleStyleSheet()
+    
+    box_x, box_y = 50, height
+    box_width, box_height = width-100, 340
+
+    # 박스 그리기
+    c.setStrokeColor(colors.black)
+    c.setFillColor(colors.white)
+    c.rect(box_x, box_y, box_width, box_height, fill=1)
+
+    # 텍스트 크기를 동적으로 조정
+    text = "\n".join(sub_result)
+
+    font_size = 12  # 초기 폰트 크기
+    max_font_size = 12
+    min_font_size = 8  # 최소 폰트 크기 (너무 작아지지 않도록 제한)
+
+    while font_size >= min_font_size:
+        style = ParagraphStyle(
+            "CustomStyle",
+            parent=styles["Normal"],
+            fontName="NanumMyeongjo",
+            fontSize=font_size,
+            leading=font_size * 1.5  # 줄간격을 글자 크기의 1.5배로 설정
+        )
+        paragraph = Paragraph(text, style)
+
+        # 텍스트가 박스 크기에 맞는지 확인
+        width_needed, height_needed = paragraph.wrap(box_width - 20, box_height - 20)
+        
+        if height_needed <= box_height - 20:
+            break  # 박스에 맞으면 루프 종료
+        font_size -= 1  # 텍스트 크기를 줄여서 다시 시도
+        
+    paragraph.wrapOn(c, box_width - 20, box_height - 20)
+    paragraph.drawOn(c, box_x + 10, box_y + (box_height - height_needed) / 2)  # 중앙 정렬
+
+# ================================== # 도서 추천
+def draw_book_recommendations(c, data, width, height_st2, table_down):
     styles = getSampleStyleSheet()
     style = styles["Normal"]
     style.fontName = "NanumMyeongjo"
@@ -272,38 +337,17 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
     style.leading = 14
     style.alignment = 0
 
-    x_start = 50
-    remaining_width = width - (2 * x_start)
-    box_width = remaining_width / 2
-    box_padding = 10
-    box_y_start = height_st2 - table_down
-    bottom_margin = 50
-    box_height = box_y_start - bottom_margin
-    title_height = 30
-
-    # 첫 번째 박스 - "피드백"
-    box_x1 = x_start
-    c.setStrokeColor(colors.black)
-    c.setFillColor(colors.transparent)
-    c.rect(box_x1, bottom_margin, box_width - box_padding / 2, box_height, fill=0)
-
-    c.setFillColor(colors.lightgrey)
-    c.rect(box_x1, box_y_start - title_height, box_width - box_padding / 2, title_height, fill=1)
-
-    c.setFont("NanumMyeongjo", 12)
-    c.setFillColor(colors.black)
-    c.drawCentredString(
-        box_x1 + (box_width - box_padding / 2) / 2,
-        box_y_start - title_height / 2 - 6,
-        "피드백"
-    )
-
-    paragraph = Paragraph(data['team_opinion'], style)
-    paragraph.wrapOn(c, box_width - box_padding / 2 - 20, box_height - title_height - 10)
-    paragraph.drawOn(c, box_x1 + 10, bottom_margin + 10)
+    x_start = 50  # 좌측 여백 (X 시작점)
+    remaining_width = width - (2 * x_start)  # 페이지에서 좌우 여백을 제외한 너비
+    box_width = remaining_width  # 박스의 총 너비
+    box_padding = 10  # 박스 내부 여백
+    box_y_start = height_st2 - table_down  # 박스가 시작되는 Y 좌표
+    bottom_margin = 50  # 박스의 하단 여백
+    box_height = box_y_start - bottom_margin  # 박스의 실제 높이
+    title_height = 30  # "개선 방안" 제목 영역 높이
 
     # 두 번째 박스 - "개선 방안"
-    box_x2 = box_x1 + box_width + box_padding / 2
+    box_x2 = x_start
     box_width2 = box_width - box_padding / 2
     
     # 박스 그리기
@@ -322,6 +366,32 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
         box_y_start - title_height / 2 - 6,
         "개선 방안"
     )
+
+    # 제목 박스 아래에 안내 문구 추가
+    c.setFont("NanumMyeongjo", 11)
+    c.setFillColor(colors.black)
+    
+    # 안내 문구를 위한 특별한 스타일
+    guide_style = ParagraphStyle(
+        'GuideText',
+        fontName='NanumMyeongjo',
+        fontSize=11,
+        leading=14,
+        alignment=1,  # 가운데 정렬
+        textColor=colors.HexColor('#2C3E50'),  # 진한 남색
+        spaceBefore=10,
+        spaceAfter=10
+    )
+    
+    guide_text = Paragraph(
+        "피드백을 기반으로 AI가 도서 2개를 추천해드립니다", 
+        guide_style
+    )
+    guide_text.wrapOn(c, box_width2 - 40, 30)
+    guide_text.drawOn(c, box_x2 + 20, box_y_start - title_height - 25)
+    
+    # 시작 위치를 안내 문구 아래로 조정
+    current_y = box_y_start - title_height - 60  # 기존 -30에서 -60으로 변경
 
     # 텍스트 스타일 설정
     title_style = ParagraphStyle(
@@ -343,48 +413,55 @@ def draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down
     )
 
     # 도서 추천 정보 표시
-    book_info = data.get('book_recommendation', {})
-    if not book_info:
+    book_recommendations = data.get('book_recommendation', [])
+    if not book_recommendations:
         return
 
-    # 시작 위치 설정
-    content_x = box_x2 + 20
-    current_y = box_y_start - title_height - 30  # 제목 아래부터 시작
+    for i, book_info in enumerate(book_recommendations):
+        if i > 0:  # 두 번째 책부터는 구분선 추가
+            c.setStrokeColor(colors.grey)
+            c.line(box_x2 + 10, current_y + 10, box_x2 + box_width2 - 10, current_y + 10)
+            current_y -= 30
 
-    # 1. 책 제목
-    title = Paragraph(book_info.get('title', ''), title_style)
-    title.wrapOn(c, box_width2 - 40, 30)
-    title.drawOn(c, content_x, current_y)
-    current_y -= 25 # 다음 요소를 위한 간격
+        # 1. 책 제목
+        title = Paragraph(book_info.get('title', ''), title_style)
+        title.wrapOn(c, box_width2 - 40, 30)
+        title.drawOn(c, box_x2 + 20, current_y)
+        current_y -= 25
 
-    # 2. 저자
-    authors = Paragraph(f"저자: {book_info.get('authors', '')}", text_style)
-    authors.wrapOn(c, box_width2 - 40, 20)
-    authors.drawOn(c, content_x, current_y)
-    current_y -= 5  # 다음 요소를 위한 간격
+        # 2. 저자
+        authors = Paragraph(f"저자: {book_info.get('authors', '')}", text_style)
+        authors.wrapOn(c, box_width2 - 40, 20)
+        authors.drawOn(c, box_x2 + 20, current_y)
+        current_y -= 25
 
-    # 3. 책 이미지
-    img_width = 90
-    img_height = 120
-    
-    if book_info.get('thumbnail'):
-        try:
-            response = requests.get(book_info['thumbnail'])
-            if response.status_code == 200:
-                img = ImageReader(BytesIO(response.content))
-                c.drawImage(img, content_x, current_y - img_height, width=img_width, height=img_height)
-        except Exception as e:
-            print(f"이미지 로드 실패: {str(e)}")
-    current_y -= (img_height + 50)  # 이미지 높이 + 간격
+        # 3. 책 이미지와 내용 요약을 나란히 배치
+        img_width = 120
+        img_height = 160
+        image_y = current_y - img_height
 
-    # 4. 내용 요약
-    content_text = book_info.get('contents', '')
-    if len(content_text) > 300:  # 내용이 너무 길면 자르기
-        content_text = content_text[:300] + "..."
-    
-    content = Paragraph(f"내용 요약:\n{content_text}", text_style)
-    content.wrapOn(c, box_width2 - 40, box_height - (box_y_start - current_y))
-    content.drawOn(c, content_x, current_y - 100)  # 내용 요약을 위한 충분한 공간 확보
+        if book_info.get('thumbnail'):
+            try:
+                response = requests.get(book_info['thumbnail'])
+                if response.status_code == 200:
+                    img = ImageReader(BytesIO(response.content))
+                    c.drawImage(img, box_x2 + 20, image_y, width=img_width, height=img_height)
+            except Exception as e:
+                print(f"이미지 로드 실패: {str(e)}")
+
+        # 4. 내용 요약
+        content_text = book_info.get('contents', '')
+        # if len(content_text) > 300:
+        #     content_text = content_text[:300] + "..."
+
+        summary_x = box_x2 + 20 + img_width + 20
+        summary_width = box_width2 - img_width - 60
+
+        content = Paragraph(f"줄거리 및 내용 요약: \n{content_text}", text_style)
+        content.wrapOn(c, summary_width, img_height)
+        content.drawOn(c, summary_x, image_y + img_height - text_style.leading - 50)
+
+        current_y = image_y - 40  # 다음 책을 위한 간격 조정
 
 # ==================================
 def generate_pdf(data, filename):
@@ -398,8 +475,8 @@ def generate_pdf(data, filename):
     width, height = A4
     
     # 높이 기준
-    height_st1 = 40
-    height_st2 = height_st1 + 440  # 표 시작 위치
+    height_st1 = 100
+    height_st2 = height_st1 + 380  # 표 시작 위치
     height_st3 = height_st2 + 160
     height_st4 = height_st3 + 100
     table_down = 30  # 표와 상자 사이 간격
@@ -412,8 +489,30 @@ def generate_pdf(data, filename):
     draw_assessment_box(c, data, width, height_st3)
     draw_grade_box(c, data, width, height_st3)
     draw_table(c, data, width, height_st2)
-    draw_radar_chart(c, data, width, height_st2)
-    draw_team_opinion_and_recommendations(c, data, width, height_st2, table_down)
+    draw_difference_chart(c, data, width, height_st2)
+    draw_team_opinion(c, data, width, height_st1, table_down)
+    
+    # 새 페이지 추가
+    c.showPage()
+    
+    # 두 번째 페이지에 도서 추천 정보 그리기
+    styles = getSampleStyleSheet()
+    style = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontName='NanumMyeongjo',
+        fontSize=20,
+        leading=24,
+        alignment=1
+    )
+    
+    # 제목 추가
+    title = Paragraph("추천 도서", style)
+    title.wrapOn(c, width-100, 40)
+    title.drawOn(c, 50, height-70)
+    
+    # 도서 추천 정보 그리기 (전체 페이지 사용)
+    draw_book_recommendations(c, data, width, height-100, 30)
     
     c.save()
     print(f"PDF 생성 완료: {filename}")
@@ -424,13 +523,12 @@ if __name__ == "__main__":
     for user_data in users_data:
         user_data.update({
             'title': "인사고과 평가표",
-            'team_opinion': "소속 팀 의견",
         })
 
         filename = f"{user_data['username']}.pdf"
         generate_pdf(user_data, filename)
     
     # PDF 생성이 완료된 후 이메일 전송
-    print("\n이메일을 전송 중입니다...")
+    print("\n이메일을 전송 중입니다…")
     send_report_emails()
     print("이메일 전송을 완료했습니다.")
