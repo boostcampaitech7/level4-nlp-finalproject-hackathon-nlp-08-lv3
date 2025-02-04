@@ -61,9 +61,9 @@ def summarize_subjective(data_list): # 한 사람의 데이터만 들어옴, key
     llm = ChatUpstage()
     prompt_template = PromptTemplate.from_template(
         """
-        The characteristics below are assessments of someone's competence.
-        Write a 2-line description based on the scores below. One for assessment and one for improvement.
-        But please exclude the scores from the description.
+        너는 훌륭한 요약 전문가야.
+        아래는 개인이 받은 능력 평가야. 이 내용을 바탕으로 장점 또는 개선할 점을 포함해 1~2줄 요약을 해줘.
+        공식문서 말투로 작성해줘. 답변에 ':'을 넣지 마.
         ---
         TEXT: {text}
         """
@@ -76,8 +76,11 @@ def summarize_subjective(data_list): # 한 사람의 데이터만 들어옴, key
     for idx, key in enumerate(sorted(data_dict.keys())):
         if key.startswith("q_"):
             solar_text = f"characteristic{idx + 1}: {data_dict[key]}"
-            response = llm_chain.invoke({"text": solar_text})
-            responses.append(response)
+            while True:
+                response = llm_chain.invoke({"text": solar_text})
+                if not re.search(':', response):
+                    break
+            responses.append({"question": key, "response": response})
 
     return responses
 
