@@ -4,8 +4,6 @@ import os
 import ast  # 문자열 리스트를 실제 리스트로 변환
 import base64  # 버튼 스타일 적용을 위한 base64 변환
 
-API_BASE_URL = "http://localhost:5000/api"
-
 def user_view_my_feedback():
     st.subheader("📋 리뷰 결과")
 
@@ -47,18 +45,18 @@ def user_view_my_feedback():
         st.error("PDF 생성에 실패했습니다. 다시 시도해주세요.")
     
     try:
-        result_db_path = os.path.join(os.path.dirname(__file__), "../../backend/db/result.db")
-        feedback_db_path = os.path.join(os.path.dirname(__file__), "../../backend/db/feedback.db")
+        RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "../../backend/db/result.db")
+        FEEDBACK_DB_PATH = os.path.join(os.path.dirname(__file__), "../../backend/db/feedback.db")
     except Exception as e:
         st.error(f"❌ 경로 설정 중 오류 발생: {e}")
         return
 
     # SQLite 연결
-    with sqlite3.connect(result_db_path) as conn_result:
+    with sqlite3.connect(RESULT_DB_PATH) as conn_result:
         conn_result.row_factory = sqlite3.Row
         cursor_result = conn_result.cursor()
 
-        with sqlite3.connect(feedback_db_path) as conn_feedback:
+        with sqlite3.connect(FEEDBACK_DB_PATH) as conn_feedback:
             conn_feedback.row_factory = sqlite3.Row
             cursor_feedback = conn_feedback.cursor()
 

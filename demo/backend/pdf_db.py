@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import pandas as pd
-import numpy as np
 from langchain_upstage import ChatUpstage, UpstageEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -219,6 +218,6 @@ def process_feedback_data():
 
 
 if __name__ == "__main__":
-    if not os.path.exists(FEEDBACK_DB_PATH): # result.db가 이미 존재하는 경우
+    if not os.path.exists(RESULT_DB_PATH): # result.db가 이미 존재하는 경우
         init_result_db()
         process_feedback_data()
