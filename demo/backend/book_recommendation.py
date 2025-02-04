@@ -84,13 +84,14 @@ def summarize_book_content(content):
     """Solar Chat API를 사용하여 책 내용을 요약"""
     try:
         prompt = f"""
-다음은 책의 내용입니다. 핵심 내용을 요약해주세요:
+아래의 책의 내용을 읽고 핵심 내용을 요약해주세요
 
 {content}
 
 요약할 때 다음 사항을 지켜주세요:
 1. 책의 핵심 주제나 메시지를 포함할 것
 2. 간결하고 명확하게 작성할 것
+3. 공백 포함 최대 300자 내로 요약할 것
 """
 
         response = solar_client.chat.completions.create(
@@ -159,7 +160,7 @@ def get_book_recommendation(username, lowest_keyword):
             print(f"[{username}] 쿼리 임베딩 생성 실패: {str(e)}")
             return None
             
-        # 수정된 부분: 상위 2개의 책을 저장할 리스트
+        # 수정된 부분: 상위 3개의 책을 저장할 리스트
         best_books = []
         similarities = []
         
@@ -176,22 +177,25 @@ def get_book_recommendation(username, lowest_keyword):
                             book_embedding = book_data.get('embedding')
                             if book_embedding:
                                 similarity = cosine_similarity(query_embedding, book_embedding)
-                                # 상위 2개 책 관리
-                                if len(best_books) < 2:
+                                # 상위 3개 책 관리
+                                if len(best_books) < 3:
                                     best_books.append(book_data)
                                     similarities.append(similarity)
                                     # 정렬
-                                    if len(best_books) == 2:
-                                        if similarities[0] < similarities[1]:
-                                            best_books[0], best_books[1] = best_books[1], best_books[0]
-                                            similarities[0], similarities[1] = similarities[1], similarities[0]
-                                elif similarity > similarities[1]:
-                                    best_books[1] = book_data
-                                    similarities[1] = similarity
-                                    # 정렬
-                                    if similarities[1] > similarities[0]:
-                                        best_books[0], best_books[1] = best_books[1], best_books[0]
-                                        similarities[0], similarities[1] = similarities[1], similarities[0]
+                                    if len(best_books) > 1:
+                                        # 버블 정렬로 상위 3개 유지
+                                        for i in range(len(similarities)-1):
+                                            if similarities[i] < similarities[i+1]:
+                                                similarities[i], similarities[i+1] = similarities[i+1], similarities[i]
+                                                best_books[i], best_books[i+1] = best_books[i+1], best_books[i]
+                                elif similarity > similarities[-1]:
+                                    best_books[-1] = book_data
+                                    similarities[-1] = similarity
+                                    # 정렬 유지
+                                    for i in range(len(similarities)-1):
+                                        if similarities[i] < similarities[i+1]:
+                                            similarities[i], similarities[i+1] = similarities[i+1], similarities[i]
+                                            best_books[i], best_books[i+1] = best_books[i+1], best_books[i]
                                     
                 except Exception as e:
                     print(f"[{username}] 청크 파일 '{chunk_file}' 처리 중 오류: {str(e)}")
