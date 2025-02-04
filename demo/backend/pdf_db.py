@@ -2,8 +2,14 @@ import os
 import sqlite3
 import pandas as pd
 import numpy as np
+from langchain_upstage import ChatUpstage, UpstageEmbeddings
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+from tqdm import tqdm  # tqdm 추가
 
-# DB 경로 설정
+load_dotenv()
+UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 FEEDBACK_DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 
@@ -56,6 +62,32 @@ def init_result_db():
     
     conn.commit()
     conn.close()
+
+def normalize_tone(text_list):
+    """각 텍스트 리스트에 대해 톤 정규화 수행"""
+    llm = ChatUpstage(api_key=UPSTAGE_API_KEY)
+    
+    prompt_template = PromptTemplate.from_template(
+        """
+        아래 주어진 문장을 인물 지칭을 모두 제외하고, 존대하는 평서문으로 내용은 그대로 유지한채로 말투만 바꿔주세요.
+        단, 매우 부정적인 내용은 필터링해주세요.
+        {text}
+        변경 후 텍스트 :
+        """
+    )
+    
+    llm_chain = prompt_template | llm | StrOutputParser()
+    
+    # 동기 LLM 호출
+    def process_text(text):
+        return llm_chain.invoke({"text": text})
+
+    normalized_texts = [process_text(text) for text in text_list]
+    
+    normalized_texts = [text.split(':', 1)[-1].strip() if ':' in text else text for text in normalized_texts]
+    normalized_texts = [text.replace('"', '') for text in normalized_texts]
+    normalized_texts = [text.replace("'", '') for text in normalized_texts]
+    return [text.strip() for text in normalized_texts]
 
 def process_feedback_data():
     # feedback.db 연결
@@ -142,7 +174,7 @@ def process_feedback_data():
     result_conn = get_result_connection()
     
     # multiple 테이블 데이터 저장
-    for _, row in pivot_df.iterrows():
+    for _, row in tqdm(pivot_df.iterrows(), total=pivot_df.shape[0], desc="Processing multiple choice data"): # tqdm 추가
         cur = result_conn.cursor()
         placeholders = ', '.join(['?' for _ in range(len(keywords) + 3)])  # '총합'과 '등급' 추가
         columns = ['to_username'] + keywords + ['총합', '등급']
@@ -167,11 +199,11 @@ def process_feedback_data():
     subj_df = pd.read_sql_query(subj_query, fb_conn)
     
     # subjective 테이블 데이터 저장
-    for username in subj_df['to_username'].unique():
+    for username in tqdm(subj_df['to_username'].unique(), desc="Processing subjective data"):
         feedbacks = subj_df[subj_df['to_username'] == username]
         
-        # 각 질문 ID에 대해 답변 리스트 생성
-        feedback_dict = {f"q_{question_id}": feedbacks[feedbacks['question_id'] == question_id]['answer_content'].tolist() for question_id in question_ids}
+        # 각 질문 ID에 대해 답변 리스트 생성 및 톤 정규화
+        feedback_dict = {f"q_{question_id}": normalize_tone(feedbacks[feedbacks['question_id'] == question_id]['answer_content'].tolist()) for question_id in question_ids}
         
         cur = result_conn.cursor()
         # 데이터 삽입
@@ -187,5 +219,6 @@ def process_feedback_data():
 
 
 if __name__ == "__main__":
-    init_result_db()
-    process_feedback_data()
+    if not os.path.exists(FEEDBACK_DB_PATH): # result.db가 이미 존재하는 경우
+        init_result_db()
+        process_feedback_data()
