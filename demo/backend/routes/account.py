@@ -46,7 +46,7 @@ def get_users():
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT u.id, u.username, u.name, u.role, u.group_id, g.group_name, u.rank
+            SELECT u.id, u.username, u.name, u.role, u.email, u.group_id, g.group_name, u.rank
             FROM users u
             LEFT JOIN groups g ON u.group_id = g.id
             ORDER BY u.id ASC
@@ -60,9 +60,10 @@ def get_users():
                 "username": r[1],
                 "name": r[2],
                 "role": r[3],
-                "group_id": r[4],
-                "group_name": r[5],
-                "rank": r[6]
+                "email": r[4],
+                "group_id": r[5],
+                "group_name": r[6],
+                "rank": r[7]
             })
         return jsonify({"success": True, "users": users})
     except Exception as e:
