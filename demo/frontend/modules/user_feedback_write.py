@@ -74,8 +74,9 @@ def user_write_feedback():
 
     for keyword, qs in keyword_map.items():
         st.markdown(f"""
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <h3>{keyword}</h3>
+            <div style="background-color: #E8F6F3; padding: 20px; border-radius: 15px; margin: 25px 0; 
+                        border-left: 5px solid #16A085; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="color: #16A085; margin: 0; font-size: 1.3em;">{keyword}</h3>
             </div>
         """, unsafe_allow_html=True)
         for q in qs:
