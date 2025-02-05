@@ -146,7 +146,6 @@ def admin_manage_questions():
 
                 type_map = {
                     "single_choice": "객관식(단일)",
-                    "multi_choice": "객관식(복수)",
                     "long_answer": "주관식"
                 }
 
@@ -163,7 +162,7 @@ def admin_manage_questions():
                     
                     new_text = st.text_input("질문", key="new_text")
                     new_type = st.selectbox("질문 유형", 
-                                        ["single_choice","multi_choice","long_answer"],
+                                        ["single_choice","long_answer"],
                                         key="new_type")
 
                     if new_type != "long_answer":
@@ -223,8 +222,8 @@ def admin_manage_questions():
                                 edit_text = st.text_input("질문", value=q_txt, key=f"edit_text_{q_id}")
                                 edit_type = st.selectbox(
                                     "질문 유형",
-                                    ["single_choice", "multi_choice", "long_answer"],
-                                    index=["single_choice", "multi_choice", "long_answer"].index(q_type_db),
+                                    ["single_choice","long_answer"],
+                                    index=["single_choice","long_answer"].index(q_type_db),
                                     key=f"edit_type_{q_id}"
                                 )
 
@@ -510,7 +509,7 @@ def question_add_page():
 
     new_kw = st.text_input("keyword")
     new_text = st.text_input("질문")
-    new_type = st.selectbox("질문 유형", ["single_choice","multi_choice","long_answer"])
+    new_type = st.selectbox("질문 유형", ["single_choice","long_answer"])
 
     if new_type == "long_answer":
         new_opts = ""
@@ -549,9 +548,9 @@ def question_edit_page(question_id):
 
         edit_type = st.selectbox(
             "질문 유형",
-            ["single_choice", "multi_choice", "long_answer"],
-            index=["single_choice", "multi_choice", "long_answer"].index(old_type)
-            if old_type in ["single_choice", "multi_choice", "long_answer"] else 0
+            ["single_choice", "long_answer"],
+            index=["single_choice","long_answer"].index(old_type)
+            if old_type in ["single_choice","long_answer"] else 0
         )
 
         if edit_type == "long_answer":
