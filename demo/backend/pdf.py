@@ -41,7 +41,7 @@ pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 KEYWORD_DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
-# BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
+BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
 PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf")
 
 # 특정 파일이 없을 경우, 특정 파이썬 스크립트를 실행
@@ -143,7 +143,7 @@ def fetch_data():
                         team_opinion.append([row, value[0]])  # 첫 번째 컬럼 값을 리스트에 추가
             
             # book_recommendation.py의 함수 호출
-            # book_recommendation = get_book_recommendation(username, lowest_keyword)
+            book_recommendation = get_book_recommendation(username, lowest_keyword)
 
             all_user_data.append({
                 'username': username,
@@ -155,7 +155,7 @@ def fetch_data():
                 'total_score': total_score,
                 'team_opinion': team_opinion,
                 'feedback_keywords': feedback_keywords,
-                # 'book_recommendation': book_recommendation
+                'book_recommendation': book_recommendation
             })
 
     finally:
@@ -510,10 +510,10 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
         spaceAfter=5
     )
 
-    # # 도서 추천 정보 표시
-    # book_recommendations = data.get('book_recommendation', [])
-    # if not book_recommendations:
-    #     return
+    # 도서 추천 정보 표시
+    book_recommendations = data.get('book_recommendation', [])
+    if not book_recommendations:
+        return
     
     # 시작 위치 설정
     content_x = box_x2 + 20
@@ -638,7 +638,7 @@ def generate_pdf(data, filename):
     title.drawOn(c, 50, height-70)
     
     # 도서 추천 정보 그리기 (전체 페이지 사용)
-    # draw_book_recommendations(c, data, width, height-100, 30)
+    draw_book_recommendations(c, data, width, height-100, 30)
     
     c.save()
     print(f"PDF 생성 완료: {filename}")
