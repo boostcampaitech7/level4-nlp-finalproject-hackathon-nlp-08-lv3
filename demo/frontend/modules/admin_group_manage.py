@@ -5,11 +5,11 @@ import time
 API_BASE_URL = "http://localhost:5000/api"
 
 def admin_manage_groups():
-    st.write("## 부서 관리")
+    st.write("## 💼 부서 관리")
 
     # 부서 생성
     st.write("---")
-    st.subheader("부서 생성")
+    st.subheader("*️⃣ 부서 생성")
     new_group_name = st.text_input("새 부서 이름을 입력하세요")
     if st.button("부서 생성"):
         if new_group_name.strip():
@@ -25,7 +25,7 @@ def admin_manage_groups():
 
     # 부서 목록 조회
     st.write("---")
-    st.subheader("부서 목록 및 관리")
+    st.subheader("🔄 부서 목록 및 관리")
     response = requests.get(f"{API_BASE_URL}/groups")
     if response.status_code == 200:
         groups = response.json().get("groups", [])

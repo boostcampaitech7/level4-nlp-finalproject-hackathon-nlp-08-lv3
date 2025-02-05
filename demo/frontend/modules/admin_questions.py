@@ -58,7 +58,7 @@ def get_question_suggestions(keyword):
         return f"질문 생성 중 오류가 발생했습니다: {str(e)}"
 
 def admin_manage_questions():
-    st.write("## 리뷰 템플릿 관리")
+    st.write("## 📝 리뷰 관리")
     
     tab_manage, tab_preview, tab_deadline = st.tabs(["편집", "미리보기", "기간 설정"])
     if 'edit_completed' not in st.session_state:
@@ -112,7 +112,7 @@ def admin_manage_questions():
                     help="⚠️ 주의: 편집 완료 후에는 수정이 불가능합니다")
 
             keywords = st_tags(
-                label='### 키워드 목록 작성',
+                label='### 🏷️ 키워드 목록 작성',
                 text='키워드를 입력하고 Enter를 누르세요',
                 value=['업적','능력','리더십','협업','태도'],
                 suggestions=[
@@ -130,7 +130,7 @@ def admin_manage_questions():
             if st.button("파일로 질문 추가", key="add_question_from_pdf_button"):
                 st.session_state.page = "question_add_from_pdf"
                 st.rerun()
-            
+                
             # 기존 질문 목록 표시
             resp = requests.get(f"{API_BASE_URL}/questions")
             if resp.status_code == 200 and resp.json().get("success"):
@@ -144,7 +144,7 @@ def admin_manage_questions():
                 with st.expander("질문 추가하기", expanded=False):
                     new_kw = st.selectbox("keyword", options=keywords, key="new_kw")
                     
-                    if st.button("AI 질문 추천받기"):
+                    if st.button("🤖 AI 질문 추천받기"):
                         with st.spinner("AI가 키워드에 맞는 추천 질문을 생성중입니다..."):
                             suggested_questions = get_question_suggestions(new_kw)
                             st.text_area("추천 질문", 
@@ -275,7 +275,7 @@ def admin_manage_questions():
     st.markdown("---")
 
 def admin_manage_deadline():
-    st.write("### 피드백 제출 기간 설정")
+    st.write("### 🗓️ 피드백 제출 기간 설정")
     
     resp = requests.get(f"{API_BASE_URL}/deadline")
     current_start_date = None
@@ -408,7 +408,8 @@ def admin_manage_deadline():
             st.error(f"설정에 실패했습니다: {error_msg}")
 
 def preview_questions():
-    st.write("### 미리보기: 동료 피드백 작성 화면")
+    st.write("### 👀 미리보기")
+    st.info("이 화면은 미리보기 전용입니다. 실제 제출 기능은 없습니다.")
 
     r_q = requests.get(f"{API_BASE_URL}/questions")
     if r_q.status_code == 200 and r_q.json().get("success"):
@@ -428,8 +429,9 @@ def preview_questions():
 
     for keyword, qs in keyword_map.items():
         st.markdown(f"""
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <h3>{keyword}</h3>
+            <div style="background-color: #E8F6F3; padding: 20px; border-radius: 15px; margin: 25px 0; 
+                        border-left: 5px solid #16A085; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="color: #16A085; margin: 0; font-size: 1.3em;">{keyword}</h3>
             </div>
         """, unsafe_allow_html=True)
         for q in qs:
@@ -459,8 +461,6 @@ def preview_questions():
                 st.markdown(f"<p style='color: #666;'><strong>{q_text}</strong></p>", unsafe_allow_html=True)
                 short_ans = st.text_input("답변 입력", key=f"{key_prefix}_text", disabled = True)
                 answers[q_id] = short_ans
-
-    st.info("이 화면은 미리보기 전용입니다. 실제 제출 기능은 없습니다.")
 
 def question_add_page():
     st.title("질문 추가")

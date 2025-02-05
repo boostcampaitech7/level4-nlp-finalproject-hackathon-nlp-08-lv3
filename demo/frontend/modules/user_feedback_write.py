@@ -5,7 +5,7 @@ from datetime import datetime
 API_BASE_URL = "http://localhost:5000/api"
 
 def user_write_feedback():
-    st.write("## 리뷰 작성")
+    st.write("## ✍ 리뷰 작성")
 
     # 피드백 기간 확인
     resp = requests.get(f"{API_BASE_URL}/deadline")
