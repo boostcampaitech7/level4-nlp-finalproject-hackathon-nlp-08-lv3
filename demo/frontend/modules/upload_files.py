@@ -76,7 +76,7 @@ def display_evaluation_form(evaluation_data):
                 
                 with col1:
                     st.markdown(f"**{question['evaluation_item']}**")
-                    st.markdown(f"<div style='background-color: gray; padding: 5px 10px; border-radius: 10px; display: inline-block;'>질문</div> : {question['criteria']}", unsafe_allow_html=True)
+                    st.markdown(f"{question['criteria']}", unsafe_allow_html=True)
                 
                 with col2:
                     st.session_state.form_data[question_key]["include"] = st.checkbox(
@@ -88,9 +88,9 @@ def display_evaluation_form(evaluation_data):
                 with col3:
                     st.session_state.form_data[question_key]["question_type"] = st.selectbox(
                         "질문 유형",
-                        ["single_choice", "multi_choice", "subjective"],
+                        ["single_choice","long_answer"],
                         key=f"type_{question_key}",
-                        index=["single_choice", "multi_choice", "subjective"].index(
+                        index=["single_choice","long_answer"].index(
                             st.session_state.form_data[question_key]["question_type"]
                         )
                     )
@@ -274,7 +274,7 @@ def question_add_from_pdf_page():
                         else:
                             st.warning("저장할 질문이 없습니다.")
                     
-                    col1, col2 = st.columns([1, 1])
+                    col1, col2 = st.columns([1, 16]) # 버튼 위치 조정을 위해 추가
                     with col1:
                         if st.button("적용", key="apply_button"):
                             selected_questions = process_selected_questions()
