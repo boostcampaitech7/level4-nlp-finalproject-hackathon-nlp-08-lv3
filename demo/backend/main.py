@@ -17,7 +17,7 @@ from routes.check_feedback import check_feedback_bp
 from routes.submit_feedback_bulk import submit_feedback_bulk_bp
 from routes.groups import groups_bp  
 from routes.summary import summary_bp
-
+from routes.count_feedback import feedback_count_bp
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
@@ -84,6 +84,7 @@ app.register_blueprint(check_feedback_bp)
 app.register_blueprint(submit_feedback_bulk_bp)
 app.register_blueprint(groups_bp)
 app.register_blueprint(summary_bp)
+app.register_blueprint(feedback_count_bp)
 
 
 if __name__ == "__main__":
