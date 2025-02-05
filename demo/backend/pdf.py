@@ -41,7 +41,7 @@ pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 KEYWORD_DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
-BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
+# BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
 PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf")
 
 # 특정 파일이 없을 경우, 특정 파이썬 스크립트를 실행
@@ -60,207 +60,6 @@ def get_result_connection():
 def get_keyword_connection():
     return sqlite3.connect(KEYWORD_DB_PATH)
 
-# ==================================  '인사평가표 제목', 이름 , 직급 => 완료
-def draw_header(c, data, width, height):
-    """ 인사고과 평가서 제목과 프로필 정보 표시 """
-    c.setFillColor(colors.black)
-    c.setFont("NanumGothic", 30)
-    c.drawCentredString(width / 2, height - 50, data['title'])
-
-    # 프로필 이미지 추가
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    image_path = os.path.join(current_dir, "profile.png")
-    img_width, img_height = 100, 100
-    c.drawImage(ImageReader(image_path), 50, height - img_height - 80, width=img_width, height=img_height)
-
-
-    # 정보
-    c.setFont("NanumGothic", 15)
-    c.drawString(180, height - 95, "정보")
-
-    # 구분선 추가 (가로 선)
-    line_x_start = 180  # 선의 시작 X 좌표
-    line_x_end = 360  # 선의 끝 X 좌표 (길이 조절 가능)
-    line_y = height - 100  # 선의 Y 좌표 (정보 글자보다 살짝 아래)
-
-    c.setStrokeColor(colors.black)  # 선 색상 설정
-    c.setLineWidth(1)  # 선 두께 설정
-    c.line(line_x_start, line_y, line_x_end, line_y)  # 선 그리기
-
-    # 인적 사항을 표 형태로 정렬
-    c.setFont("NanumGothic", 14)
-    info_x, info_y = 180, height - 135
-    department, position = data['position'].rsplit(" ", 1) if " " in data['position'] else (data['position'], "")
-    info_data = [["이름", data['name']], 
-                 ["부서", department],
-                 ["직급", position]]
-    
-    table = Table(info_data, colWidths=[50, 150])
-    table.setStyle(TableStyle([
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('FONTNAME', (0,0), (-1,-1), 'NanumGothic'),
-        ('FONTSIZE', (0,0), (-1,-1), 14),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-    ]))
-    table.wrapOn(c, width, height)
-    table.drawOn(c, info_x, info_y - 40)
-    
-    return info_y
-
-# ==================================  # 한줄평가
-def draw_assessment_box(c, data, width, height):
-    
-    mul_result = summarize_multiple(data['scores'])
-    
-    styles = getSampleStyleSheet()
-    
-    box_x, box_y = 50, height - 50
-    box_width, box_height = 200, 60  # 크기 조정
-
-    # 박스 그리기
-    c.setStrokeColor(colors.black)
-    c.setFillColor(colors.lightgrey)
-    c.rect(box_x, box_y, box_width, box_height, fill=1)
-
-    # 폰트 스타일
-    style = ParagraphStyle(
-        "CustomStyle",
-        parent=styles["Normal"],
-        fontName="NanumGothic",
-        fontSize=11,
-        leading=14
-    )
-    paragraph = Paragraph(mul_result, style)
-
-    # 텍스트 박스 내 중앙 정렬
-    paragraph.wrapOn(c, box_width - 10, box_height - 10)
-    paragraph.drawOn(c, box_x + 5, box_y + 20)
-
-# ==================================  # 등급
-def draw_grade_box(c, data, width, height, name_y):
-    """ 등급을 오른쪽 정렬하고, 정보와 맞추어 배치 """
-    
-    styles = getSampleStyleSheet()
-    
-    # 1️⃣ 등급 제목 ("등급")을 오른쪽 정렬 및 폰트 크기 15 적용
-    title_style = ParagraphStyle(
-        "TitleStyle",
-        parent=styles["Normal"],
-        fontName="NanumGothic",
-        fontSize=15,  # 등급 제목 크기 조정
-        alignment=2,  # 오른쪽 정렬
-        spaceAfter=5,  # 아래 간격 추가
-    )
-    
-    # 2️⃣ 등급 값을 스타일 적용하여 표시 (네이비 색상)
-    grade_style = ParagraphStyle(
-        "GradeStyle",
-        parent=styles["Normal"],
-        fontName="NanumGothic",
-        fontSize=50,  # 등급 크기
-        textColor=colors.HexColor("#08c7b4"),  # 민트트 색상 적용
-        alignment=2,  # 오른쪽 정렬
-    )
-    
-    # 3️⃣ 제목과 등급의 위치 조정 (정보와 맞춤)
-    title_x = width - 280  # 오른쪽 정렬 위치 (여백 조정 가능)
-    title_y = height - 140  # 정보와 같은 높이로 조정
-    grade_y = title_y - 40  # 등급 아래 위치
-    line_y = grade_y - 10  # 구분선 위치 조정
-    
-    # 4️⃣ 제목과 등급을 PDF에 추가
-    title_paragraph = Paragraph("등급", title_style)
-    grade_paragraph = Paragraph(data['grade'], grade_style)
-    
-    title_paragraph.wrapOn(c, 100, 30)  # 제목 크기 조정
-    title_paragraph.drawOn(c, title_x, title_y)  # 제목 위치 지정
-    
-    grade_paragraph.wrapOn(c, 100, 30)  # 등급 크기 조정
-    grade_paragraph.drawOn(c, title_x+80, grade_y)  # 등급 위치 지정
-    
-    # 구분선 추가
-    c.setStrokeColor(colors.black)  # 선 색상 설정
-    c.setLineWidth(1)  # 선 두께 설정
-    c.line(title_x+70, line_y+40, title_x + 250, line_y+40)  # 선 그리기
-
-# ==================================  # 표, 막대그래프 => 완료
-def draw_table(c, data, width, height):
-    table_data = [
-        ["평가항목", "점수 (5점 만점)"],
-        *data['scores'],
-        ["합계", f"{data['total_score']:.2f}"]
-    ]
-    
-    table = Table(table_data, colWidths=[130, 100])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#08c7b4")), # 민트트
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('FONTNAME', (0,0), (-1,-1), 'NanumGothic'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('GRID', (0,0), (-1,-1), 1, colors.black),
-    ]))
-    table.wrapOn(c, width, height)
-    table.drawOn(c, 50, height-70)
-    
-def draw_difference_chart(c, data, width, height):
-
-    prop = fm.FontProperties(fname=font_path, size=14)
-
-    # 데이터 준비
-    labels = [score[0] for score in data['scores']]
-    values = np.array([float(score[1]) for score in data['scores']])
-    team_values = np.array([float(score[1]) for score in data['team_average']])
-
-    # 팀 평균 대비 차이 계산
-    difference = values - team_values
-
-    # 가장 잘한 항목과 가장 부족한 항목 찾기
-    best_category = labels[np.argmax(difference)]
-    worst_category = labels[np.argmin(difference)]
-
-    # 그래프 크기 조정
-    fig, ax = plt.subplots(figsize=(6, 4))
-    fig.patch.set_facecolor('white')
-    ax.set_facecolor('white')
-
-    # 색상 설정 (잘한 것은 초록색, 부족한 것은 빨간색 강조)
-    colors = ['#08c7b4' if diff > 0 else 'gray' for diff in difference]
-    
-    ax.barh(labels, difference, color=colors, alpha=0.7)
-    ax.axvline(0, color='black', linewidth=1)  # 중앙선 추가
-
-    # **텍스트 라벨 추가 (강점/약점 강조)**
-    for i, (label, v) in enumerate(zip(labels, difference)):
-        ha = 'left' if v > 0 else 'right'
-        color = '#08c7b4' if label == best_category else "gray" if label == worst_category else "black"
-        text = "강점" if label == best_category else "약점" if label == worst_category else ""
-        # ax.text(v, i, f"{v:.1f}", ha=ha, va='center', fontsize=12, fontweight='bold', color='black', fontproperties=prop)  # 숫자
-        ax.text(v + (0.1 if v > 0 else -0.2), i, text, ha=ha, va='center', fontsize=14, fontweight='bold', color=color, fontproperties=prop)  # 강점/약점
-
-    # X축 범위 자동 조정
-    abs_max = max(abs(difference.min()), abs(difference.max()))
-    ax.set_xlim(-abs_max - 0.5, abs_max + 0.5)
-
-    # **그래프 상단에 "평균보다 낮음/높음" 표시 (더 크게 & 중앙 정렬)**
-    ax.text(0, len(labels), "↓ 평균 이하 | 평균 이상 ↑", fontsize=14, color="black", fontweight="bold", ha="center", fontproperties=prop)
-
-    # **Y축 레이블 유지**
-    ax.set_yticks(range(len(labels)))
-    ax.set_yticklabels(labels, fontproperties=prop, fontsize=12)
-
-    # 그리드 스타일 조정
-    ax.grid(axis='x', linestyle='--', alpha=0.5)
-
-    # 그래프 저장 및 PDF 삽입
-    buffer = BytesIO()
-    plt.savefig(buffer, format="png", dpi=100, facecolor="white", bbox_inches="tight")
-    plt.close()
-    buffer.seek(0)
-
-    # PDF에 이미지 추가
-    c.drawImage(ImageReader(buffer), width-280, height-90, width=250, height=180)
-    
 # ==================================  # 사용자 정보 가져오기
 def fetch_data():
     user_conn = get_user_connection()
@@ -344,7 +143,7 @@ def fetch_data():
                         team_opinion.append([row, value[0]])  # 첫 번째 컬럼 값을 리스트에 추가
             
             # book_recommendation.py의 함수 호출
-            book_recommendation = get_book_recommendation(username, lowest_keyword)
+            # book_recommendation = get_book_recommendation(username, lowest_keyword)
 
             all_user_data.append({
                 'username': username,
@@ -356,7 +155,7 @@ def fetch_data():
                 'total_score': total_score,
                 'team_opinion': team_opinion,
                 'feedback_keywords': feedback_keywords,
-                'book_recommendation': book_recommendation
+                # 'book_recommendation': book_recommendation
             })
 
     finally:
@@ -365,8 +164,204 @@ def fetch_data():
         
     return all_user_data
 
+# ==================================  '인사평가표 제목'
+def draw_header(c, data, width, height):
+    """ 인사고과 평가서 제목 """
+    c.setFillColor(colors.black)
+    c.setFont("NanumGothic", 30)
+    c.drawCentredString(width / 2, height - 50, data['title'])
+
+# ==================================  # 프로필사진, 개인정보, 등급
+def draw_profile_box(c, data, width, height):
+    """ 등급을 오른쪽 정렬하고, 정보와 맞추어 배치 """
+    
+    styles = getSampleStyleSheet()
+    
+    # 프로필 이미지 추가
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    image_path = os.path.join(current_dir, "profile.png")
+    img_width, img_height = 100, 100
+    c.drawImage(ImageReader(image_path), 50, height-80, width=img_width, height=img_height)
+
+
+    # '개인정보' 제목
+    c.setFont("NanumGothic", 15)
+    c.drawString(180, height + 5, "정보")
+
+    # 구분선 추가 (가로 선)
+    line_x_start = 180  # 선의 시작 X 좌표
+    line_x_end = 360  # 선의 끝 X 좌표 (길이 조절 가능)
+
+    c.setStrokeColor(colors.black)  # 선 색상 설정
+    c.setLineWidth(1)  # 선 두께 설정
+    c.line(line_x_start, height, line_x_end, height)  # 선 그리기
+
+    # 인적 사항을 표 형태로 정렬
+    c.setFont("NanumGothic", 14)
+    info_x, info_y = 180, height - 35
+    department, position = data['position'].rsplit(" ", 1) if " " in data['position'] else (data['position'], "")
+    info_data = [["이름", data['name']], 
+                 ["부서", department],
+                 ["직급", position]]
+    
+    table = Table(info_data, colWidths=[50, 150])
+    table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,-1), 'NanumGothic'),
+        ('FONTSIZE', (0,0), (-1,-1), 14),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    table.wrapOn(c, width, height+100)
+    table.drawOn(c, info_x, info_y - 40)
+    
+    
+    # "등급"을 오른쪽 정렬 및 폰트 크기 15 적용
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=styles["Normal"],
+        fontName="NanumGothic",
+        fontSize=15,  # 등급 제목 크기 조정
+        alignment=2,  # 오른쪽 정렬
+        spaceAfter=5,  # 아래 간격 추가
+    )
+    
+    # '등급'과 등급의 위치 조정 (정보와 맞춤)
+    line_x_start2 = width - 280  # 오른쪽 정렬 위치 (여백 조정 가능)
+    title_y = height + 10  # '정보'와 같은 높이로 조정
+    grade_y = title_y - 30  # 등급 아래 위치
+    
+    # 구분선 추가
+    c.setStrokeColor(colors.black)  # 선 색상 설정
+    c.setLineWidth(1)  # 선 두께 설정
+    c.line(line_x_start2 + 70, height, line_x_start2 + 240, height)  # 선 그리기
+    
+    # 등급 값을 스타일 적용하여 표시 (네이비 색상)
+    grade_style = ParagraphStyle(
+        "GradeStyle",
+        parent=styles["Normal"],
+        fontName="NanumGothic",
+        fontSize=50,  # 등급 크기
+        textColor=colors.HexColor("#08c7b4"),  # 민트트 색상 적용
+        alignment=2,  # 오른쪽 정렬
+    )
+
+    title_paragraph = Paragraph("등급", title_style)
+    grade_paragraph = Paragraph(data['grade'], grade_style)
+    
+    title_paragraph.wrapOn(c, 100, 30)  # 제목 크기 조정
+    title_paragraph.drawOn(c, line_x_start2, title_y)  # 제목 위치 지정
+    
+    grade_paragraph.wrapOn(c, 100, 30)  # 등급 크기 조정
+    grade_paragraph.drawOn(c, line_x_start2 + 70, grade_y)  # 등급 위치 지정
+
+# ==================================  # 표, 막대그래프
+def draw_table(c, data, width, height):
+    table_data = [
+        ["평가항목", "점수 (5점 만점)"],
+        *data['scores'],
+        ["합계", f"{data['total_score']:.2f}"]
+    ]
+    
+    table = Table(table_data, colWidths=[130, 100])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#08c7b4")), # 민트트
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,-1), 'NanumGothic'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 12),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+    ]))
+    table.wrapOn(c, width, height)
+    table.drawOn(c, 50, height-70)
+    
+def draw_difference_chart(c, data, width, height):
+
+    prop = fm.FontProperties(fname=font_path, size=14)
+
+    # 데이터 준비
+    labels = [score[0] for score in data['scores']]
+    values = np.array([float(score[1]) for score in data['scores']])
+    team_values = np.array([float(score[1]) for score in data['team_average']])
+
+    # 팀 평균 대비 차이 계산
+    difference = values - team_values
+
+    # 가장 잘한 항목과 가장 부족한 항목 찾기
+    best_category = labels[np.argmax(difference)]
+    worst_category = labels[np.argmin(difference)]
+
+    # 그래프 크기 조정
+    fig, ax = plt.subplots(figsize=(6, 4))
+    fig.patch.set_facecolor('white')
+    ax.set_facecolor('white')
+
+    # 색상 설정 (잘한 것은 초록색, 부족한 것은 빨간색 강조)
+    colors = ['#08c7b4' if diff > 0 else 'gray' for diff in difference]
+    
+    ax.barh(labels, difference, color=colors, alpha=0.7)
+    ax.axvline(0, color='black', linewidth=1)  # 중앙선 추가
+
+    # **텍스트 라벨 추가 (강점/약점 강조)**
+    for i, (label, v) in enumerate(zip(labels, difference)):
+        ha = 'left' if v > 0 else 'right'
+        color = '#08c7b4' if label == best_category else "gray" if label == worst_category else "black"
+        text = "강점" if label == best_category else "약점" if label == worst_category else ""
+        # ax.text(v, i, f"{v:.1f}", ha=ha, va='center', fontsize=12, fontweight='bold', color='black', fontproperties=prop)  # 숫자
+        ax.text(v + (0.1 if v > 0 else -0.2), i, text, ha=ha, va='center', fontsize=14, fontweight='bold', color=color, fontproperties=prop)  # 강점/약점
+
+    # X축 범위 자동 조정
+    abs_max = max(abs(difference.min()), abs(difference.max()))
+    ax.set_xlim(-abs_max - 0.5, abs_max + 0.5)
+
+    # **그래프 상단에 "평균보다 낮음/높음" 표시 (더 크게 & 중앙 정렬)**
+    ax.text(0, len(labels), "↓ 평균 이하 | 평균 이상 ↑", fontsize=14, color="black", fontweight="bold", ha="center", fontproperties=prop)
+
+    # **Y축 레이블 유지**
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels, fontproperties=prop, fontsize=12)
+
+    # 그리드 스타일 조정
+    ax.grid(axis='x', linestyle='--', alpha=0.5)
+
+    # 그래프 저장 및 PDF 삽입
+    buffer = BytesIO()
+    plt.savefig(buffer, format="png", dpi=100, facecolor="white", bbox_inches="tight")
+    plt.close()
+    buffer.seek(0)
+
+    # PDF에 이미지 추가
+    c.drawImage(ImageReader(buffer), width-280, height-90, width=250, height=180)
+    
+# ==================================  # 한줄평가
+def draw_assessment_box(c, data, width, height):
+    
+    mul_result = summarize_multiple(data['scores'])
+    
+    styles = getSampleStyleSheet()
+
+    box_width, box_height = 500, 190  # 박스 크기 조정
+
+    # 박스 그리기
+    c.setStrokeColor(colors.black)
+    c.setFillColor(colors.lightgrey)
+    c.rect(width, height, box_width, box_height, fill=1)
+
+    # 폰트 스타일
+    style = ParagraphStyle(
+        "CustomStyle",
+        parent=styles["Normal"],
+        fontName="NanumGothic",
+        fontSize=11,
+        leading=14
+    )
+    paragraph = Paragraph(mul_result, style)
+
+    # 텍스트 박스 내 중앙 정렬
+    paragraph.wrapOn(c, box_width - 10, box_height - 10)
+    paragraph.drawOn(c, width + 5, height + 20)
+    
 # ==================================  # 팀 의견 (주관식 요약)
-def draw_team_opinion(c, data, width, height, table_down):
+def draw_team_opinion(c, data, width, height):
     
     sub_result = summarize_subjective(data['team_opinion'])
     
@@ -515,10 +510,10 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
         spaceAfter=5
     )
 
-    # 도서 추천 정보 표시
-    book_recommendations = data.get('book_recommendation', [])
-    if not book_recommendations:
-        return
+    # # 도서 추천 정보 표시
+    # book_recommendations = data.get('book_recommendation', [])
+    # if not book_recommendations:
+    #     return
     
     # 시작 위치 설정
     content_x = box_x2 + 20
@@ -586,36 +581,47 @@ def generate_pdf(data, filename):
     c = canvas.Canvas(filepath, pagesize=A4)
     width, height = A4
     
-    # === 🟢 전체 배경 색 변경 ===
+    # ========첫번째 페이지(타이틀, 사진, 개인정보, 등급, 표, 막대그래프, 한줄평가)========
+    # === 🟢 배경 색 변경 ===
     background_color = colors.white
-    c.setFillColor(background_color)
-    c.rect(0, 0, width, height, fill=1)  # 전체 페이지 색칠
-    
-    # 높이 기준
-    height_st1 = 50
-    height_st2 = height_st1 + 430  # 표 시작 위치
-    height_st3 = height_st2 + 160
-    height_st4 = height_st3 + 100
-    table_down = 30  # 표와 상자 사이 간격
-
-    # 데이터에 도서 추천 정보가 없는 경우 기본값 설정
-    if 'book_recommendation' not in data:
-        data['book_recommendation'] = "도서 추천 정보를 찾을 수 없습니다."
-    
-    name_y = draw_header(c, data, width, height - 50)   
-    draw_grade_box(c, data, width, height, name_y)
-    draw_table(c, data, width, height_st2)
-    draw_difference_chart(c, data, width, height_st2)
-    draw_team_opinion(c, data, width, height_st1, table_down)
-    
-    # 새 페이지 추가
-    c.showPage()
-    
-     # === 🟢 두 번째 페이지도 배경 색 변경 ===
     c.setFillColor(background_color)
     c.rect(0, 0, width, height, fill=1)
     
-    # 두 번째 페이지에 도서 추천 정보 그리기
+    draw_header(c, data, width, height - 50)   
+    draw_profile_box(c, data, width, height - 180)
+    
+    height_st = height - 350
+    # 구분선 그리기
+    c.setFillColor(colors.black)
+    c.setFont("NanumGothic", 20)
+    c.drawCentredString(90, height_st + 10, '종합 평가')
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(1)
+    c.line(50, height_st, width - 50, height_st)
+    
+    draw_table(c, data, width, height_st - 100)
+    draw_difference_chart(c, data, width, height_st - 100)
+    
+    draw_assessment_box(c, data, 50, 80)
+    
+    # ========두번째 페이지(키워드 별 주관식 요약)========
+    c.showPage()
+    # === 🟢 배경 색 변경 ===
+    c.setFillColor(background_color)
+    c.rect(0, 0, width, height, fill=1)
+    
+    draw_team_opinion(c, data, width, 50)
+    
+    # ========세번째 페이지(도서 추천)========
+    c.showPage()
+     # === 🟢 배경 색 변경 ===
+    c.setFillColor(background_color)
+    c.rect(0, 0, width, height, fill=1)
+    
+    # 데이터에 도서 추천 정보가 없는 경우 기본값 설정
+    if 'book_recommendation' not in data:
+        data['book_recommendation'] = "도서 추천 정보를 찾을 수 없습니다."
+    # 세번째 페이지에 도서 추천 정보 그리기
     styles = getSampleStyleSheet()
     style = ParagraphStyle(
         'Title',
@@ -632,7 +638,7 @@ def generate_pdf(data, filename):
     title.drawOn(c, 50, height-70)
     
     # 도서 추천 정보 그리기 (전체 페이지 사용)
-    draw_book_recommendations(c, data, width, height-100, 30)
+    # draw_book_recommendations(c, data, width, height-100, 30)
     
     c.save()
     print(f"PDF 생성 완료: {filename}")
