@@ -77,6 +77,14 @@ def login_page():
                         st.rerun()
                     else:
                         st.error("관리자 로그인 실패")
+                elif resp.status_code == 401:  # 인증 실패 관련 오류 처리
+                    error_message = resp.json().get("error", "")
+                    if error_message == "invalid username":
+                        st.error("아이디 오류: 존재하지 않는 아이디입니다.")
+                    elif error_message == "invalid password":
+                        st.error("비밀번호 오류: 비밀번호가 틀렸습니다.")
+                    else:
+                        st.error("로그인 실패: 인증 오류가 발생했습니다.")
                 else:
                     st.error("로그인 API 오류")
 
@@ -98,6 +106,14 @@ def login_page():
                         st.rerun()
                     else:
                         st.error("사용자 로그인 실패")
+                elif resp.status_code == 401:  # 인증 실패 관련 오류 처리
+                    error_message = resp.json().get("error", "")
+                    if error_message == "invalid username":
+                        st.error("아이디 오류: 존재하지 않는 아이디입니다.")
+                    elif error_message == "invalid password":
+                        st.error("비밀번호 오류: 비밀번호가 틀렸습니다.")
+                    else:
+                        st.error("로그인 실패: 인증 오류가 발생했습니다.")
                 else:
                     st.error("로그인 API 오류")
 
