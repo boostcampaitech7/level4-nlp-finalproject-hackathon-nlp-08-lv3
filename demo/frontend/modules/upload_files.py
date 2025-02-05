@@ -127,8 +127,27 @@ def process_selected_questions():
     return selected_questions
 
 def question_add_from_pdf_page():
-    st.title("📂 파일로 질문 추가")
-    
+    st.markdown("""
+    <style>
+        .header-container {
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 10px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([8, 2])  
+
+    with col1:
+        st.markdown("<h1 style='margin: 0;'>📂 파일로 질문 추가</h1>", unsafe_allow_html=True)
+
+    with col2:
+        if st.button("🔙 리뷰 관리로 돌아가기", key="back_to_review"):
+            st.session_state.page = "admin_manage_questions"  # 페이지 변경
+            st.rerun()  # 즉시 새로고침
+
     uploaded_file = st.file_uploader(
         "",
         type=["pdf", "jpeg", "png", "bmp", "tiff", "heic", "docx", "xlsx", "pptx"]

@@ -54,11 +54,13 @@ def main():
         question_edit_page(st.session_state.edit_question_id)
     elif st.session_state.page == "question_add_from_pdf":
         question_add_from_pdf_page()
+    elif st.session_state.page == "admin_manage_questions": # 파일로 질문 추가 페이지 -> 리뷰 관리 페이지 이동
+        admin_page(1)  # 리뷰 관리 페이지 호출
     else:
         st.session_state.page = "login"
         st.stop()
 
-def admin_page():
+def admin_page(tab = 0): # admin_page로 돌아갈 때 돌아갈 tab을 정하기 위해 변수 추가
     # 초기 상태값 설정
     if "admin_tab" not in st.session_state:
         st.session_state.admin_tab = "mypage"
@@ -67,7 +69,7 @@ def admin_page():
         # 📌 사용자 메뉴 생성 (마이페이지 추가)
         choice = option_menu("관리자 메뉴", ["마이페이지", "리뷰 관리", "리뷰 결과 분석", "부서 관리", "로그아웃"],
                             icons=['person-circle', 'list-check', 'clipboard-check', 'person-add', 'box-arrow-right'],
-                            menu_icon="app-indicator", default_index=0,
+                            menu_icon="app-indicator", default_index=tab, # 여기로 받아서 tab 바꿀 수 있음
                             styles={
                                 "container": {"padding": "4!important", "background-color": "#fafafa"},
                                 "icon": {"color": "black", "font-size": "25px"},
