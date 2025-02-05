@@ -41,7 +41,7 @@ pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
 KEYWORD_DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
-# BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
+BOOK_CHUNK_DIR = os.path.join(os.path.dirname(__file__), "book_chunk")
 PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf")
 
 # 특정 파일이 없을 경우, 특정 파이썬 스크립트를 실행
@@ -143,7 +143,7 @@ def fetch_data():
                         team_opinion.append([row, value[0]])  # 첫 번째 컬럼 값을 리스트에 추가
             
             # book_recommendation.py의 함수 호출
-            # book_recommendation = get_book_recommendation(username, lowest_keyword)
+            book_recommendation = get_book_recommendation(username, lowest_keyword)
 
             all_user_data.append({
                 'username': username,
@@ -155,7 +155,7 @@ def fetch_data():
                 'total_score': total_score,
                 'team_opinion': team_opinion,
                 'feedback_keywords': feedback_keywords,
-                # 'book_recommendation': book_recommendation
+                'book_recommendation': book_recommendation
             })
 
     finally:
@@ -440,9 +440,9 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
     box_width = remaining_width  # 박스의 총 너비
     box_padding = 10  # 박스 내부 여백
     box_y_start = height_st2 - table_down  # 박스가 시작되는 Y 좌표
-    bottom_margin = 50  # 박스의 하단 여백
+    bottom_margin = 100  # 박스의 하단 여백
     box_height = box_y_start - bottom_margin  # 박스의 실제 높이
-    title_height = 30  # "개선 방안" 제목 영역 높이
+    title_height = 30  # 제목 영역 높이
 
     # 두 번째 박스 - "개선 방안"
     box_x2 = x_start
@@ -454,42 +454,19 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
     c.rect(box_x2, bottom_margin, box_width2, box_height, fill=0)
 
     # 제목 박스
-    c.setFillColor(colors.lightgrey)
+    c.setFillColor(colors.HexColor("#08c7b4"))  # 민트색으로 변경
     c.rect(box_x2, box_y_start - title_height, box_width2, title_height, fill=1)
 
     c.setFont("NanumGothic", 12)
-    c.setFillColor(colors.black)
+    c.setFillColor(colors.white)  # 텍스트 색상을 흰색으로 변경
     c.drawCentredString(
         box_x2 + box_width2 / 2,
         box_y_start - title_height / 2 - 6,
-        "개선 방안"
+        "피드백을 기반으로 AI가 도서 3개를 추천해드립니다"
     )
 
-    # 제목 박스 아래에 안내 문구 추가
-    c.setFont("NanumGothic", 11)
-    c.setFillColor(colors.black)
-    
-    # 안내 문구를 위한 특별한 스타일
-    guide_style = ParagraphStyle(
-        'GuideText',
-        fontName='NanumGothic',
-        fontSize=11,
-        leading=14,
-        alignment=1,  # 가운데 정렬
-        textColor=colors.HexColor('#2C3E50'),  # 진한 남색
-        spaceBefore=10,
-        spaceAfter=10
-    )
-    
-    guide_text = Paragraph(
-        "피드백을 기반으로 AI가 도서 3개를 추천해드립니다", 
-        guide_style
-    )
-    guide_text.wrapOn(c, box_width2 - 40, 30)
-    guide_text.drawOn(c, box_x2 + 20, box_y_start - title_height - 25)
-    
-    # 시작 위치를 안내 문구 아래로 조정
-    current_y = box_y_start - title_height - 60  # 기존 -30에서 -60으로 변경
+    # 시작 위치를 제목 박스 바로 아래로 조정
+    current_y = box_y_start - title_height - 60  # 가이드 텍스트 관련 코드 제거로 위치 조정
 
     # 텍스트 스타일 설정
     title_style = ParagraphStyle(
@@ -510,10 +487,10 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
         spaceAfter=5
     )
 
-    # # 도서 추천 정보 표시
-    # book_recommendations = data.get('book_recommendation', [])
-    # if not book_recommendations:
-    #     return
+    # 도서 추천 정보 표시
+    book_recommendations = data.get('book_recommendation', [])
+    if not book_recommendations:
+        return
     
     # 시작 위치 설정
     content_x = box_x2 + 20
@@ -554,8 +531,6 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
 
         # 4. 내용 요약
         content_text = book_info.get('contents', '')
-        # if len(content_text) > 300:
-        #     content_text = content_text[:300] + "..."
 
         summary_x = content_x + img_width + 20
         summary_width = box_width2 - img_width - 60
@@ -567,7 +542,7 @@ def draw_book_recommendations(c, data, width, height_st2, table_down):
         current_y = image_y - 40  # 다음 책을 위한 간격 조정
 
         # 페이지 크기를 초과하지 않도록 체크
-        if current_y < bottom_margin + 50:  # 여백보다 낮아지면 중단
+        if current_y < bottom_margin + 50:  # 여백 체크값
             break
 
 # ==================================
@@ -618,27 +593,16 @@ def generate_pdf(data, filename):
     c.setFillColor(background_color)
     c.rect(0, 0, width, height, fill=1)
     
-    # 데이터에 도서 추천 정보가 없는 경우 기본값 설정
-    if 'book_recommendation' not in data:
-        data['book_recommendation'] = "도서 추천 정보를 찾을 수 없습니다."
-    # 세번째 페이지에 도서 추천 정보 그리기
-    styles = getSampleStyleSheet()
-    style = ParagraphStyle(
-        'Title',
-        parent=styles['Title'],
-        fontName='NanumGothic',
-        fontSize=20,
-        leading=24,
-        alignment=1
-    )
+    # '종합 평가'와 동일한 스타일로 '추천 도서' 제목 추가
+    c.setFillColor(colors.black)
+    c.setFont("NanumGothic", 20)
+    c.drawString(50, height-70, '추천 도서')
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(1)
+    c.line(50, height-80, width - 50, height-80)
     
-    # 제목 추가
-    title = Paragraph("추천 도서", style)
-    title.wrapOn(c, width-100, 40)
-    title.drawOn(c, 50, height-70)
-    
-    # 도서 추천 정보 그리기 (전체 페이지 사용)
-    # draw_book_recommendations(c, data, width, height-100, 30)
+    # 도서 추천 정보 그리기 (간격 줄임)
+    draw_book_recommendations(c, data, width, height-100, 10)
     
     c.save()
     print(f"PDF 생성 완료: {filename}")
