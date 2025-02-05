@@ -23,9 +23,9 @@ def admin_mypage():
     with col1:
         st.info(f"👤 이름: {admin_name}")
     with col2:
-        st.info(f"🎯 역할: {admin_role}")
+        st.info(f"🏷️ 역할: {admin_role}")
     with col3:
-        st.info(f"📧 이메일: {admin_email}")
+        st.info(f"✉️ 이메일: {admin_email}")
 
 def user_mypage():
     st.subheader("👤 마이페이지")
@@ -48,11 +48,11 @@ def user_mypage():
     with col1:
         st.info(f"👥 소속: {group_name}")
     with col2:
-        st.info(f"🎯 직급: {rank}")
+        st.info(f"🏷️ 직급: {rank}")
     with col3:
         st.info(f"👤 이름: {user_name}")
     with col4:
-        st.info(f"📧 이메일: {user_email}")
+        st.info(f"✉️ 이메일: {user_email}")
     
     st.markdown("---")
     st.markdown("### 📊 활동 통계")

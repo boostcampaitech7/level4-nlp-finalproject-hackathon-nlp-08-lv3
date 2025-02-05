@@ -130,17 +130,26 @@ def admin_manage_questions():
             if st.button("파일로 질문 추가", key="add_question_from_pdf_button"):
                 st.session_state.page = "question_add_from_pdf"
                 st.rerun()
-                
+
             # 기존 질문 목록 표시
             resp = requests.get(f"{API_BASE_URL}/questions")
             if resp.status_code == 200 and resp.json().get("success"):
                 questions = resp.json()["questions"]
+
+                # 키워드별로 질문 그룹화
+                keyword_questions = {}
+                for q in questions:
+                    kw = q["keyword"] or "미분류"
+                    if kw not in keyword_questions:
+                        keyword_questions[kw] = []
+                    keyword_questions[kw].append(q)
 
                 type_map = {
                     "single_choice": "객관식(단일)",
                     "multi_choice": "객관식(복수)",
                     "long_answer": "주관식"
                 }
+
                 with st.expander("질문 추가하기", expanded=False):
                     new_kw = st.selectbox("keyword", options=keywords, key="new_kw")
                     
@@ -176,45 +185,58 @@ def admin_manage_questions():
                             st.rerun()
                         else:
                             st.error("질문 추가에 실패했습니다.")
-                for q in reversed(questions):
-                    q_id = q["id"]
-                    q_kw = q["keyword"] or ""
-                    q_txt = q["question_text"]
-                    q_type_db = q["question_type"]
-                    q_type_kor = type_map.get(q_type_db, q_type_db)
 
-                    if q_type_db == "long_answer":
-                        q_opts = None
-                    else:
-                        q_opts = q["options"] or ""
+                # 키워드별로 질문 표시
+                for keyword in sorted(keyword_questions.keys()):
+                    st.markdown(f"""
+                        <div style="background-color: #E8F6F3; padding: 20px; border-radius: 15px; margin: 25px 0; 
+                                border-left: 5px solid #16A085; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <h3 style="color: #16A085; margin: 0; font-size: 1.3em;">{keyword}</h3>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    for q in reversed(keyword_questions[keyword]):
+                        q_id = q["id"]
+                        q_kw = q["keyword"] or ""
+                        q_txt = q["question_text"]
+                        q_type_db = q["question_type"]
+                        q_type_kor = type_map.get(q_type_db, q_type_db)
 
-                    # 수정 상태 확인
-                    is_editing = st.session_state.get(f"editing_{q_id}", False)
-
-                    # 수정 모드 UI
-                    if is_editing:
-                        st.write(f"**질문 ID**: {q_id}")
-                        
-                        if q_kw not in keywords:
-                            st.error(f"'{q_kw}' 는 키워드 목록에 없습니다. '{q_kw}' 를 키워드 목록에 추가해주세요.")
+                        if q_type_db == "long_answer":
+                            q_opts = None
                         else:
-                            edit_kw = st.selectbox("Keyword", options=keywords, index=keywords.index(q_kw) if q_kw in keywords else 0, key=f"edit_kw_{q_id}")
-                            edit_text = st.text_input("질문", value=q_txt, key=f"edit_text_{q_id}")
-                            edit_type = st.selectbox(
-                                "질문 유형",
-                                ["single_choice", "multi_choice", "long_answer"],
-                                index=["single_choice", "multi_choice", "long_answer"].index(q_type_db),
-                                key=f"edit_type_{q_id}"
-                            )
+                            q_opts = q["options"] or ""
 
-                            if edit_type == "long_answer":
-                                edit_opts = ""
+                        # 수정 상태 확인
+                        is_editing = st.session_state.get(f"editing_{q_id}", False)
+
+                        if is_editing:
+                            st.markdown(f"<p style='color: #666; font-size: 0.9em;'>ID: {q_id}</p>", 
+                                      unsafe_allow_html=True)
+                            
+                            if q_kw not in keywords:
+                                st.error(f"'{q_kw}' 는 키워드 목록에 없습니다. '{q_kw}' 를 키워드 목록에 추가해주세요.")
                             else:
-                                edit_opts = st.text_input("옵션", value=q_opts, key=f"edit_opts_{q_id}")
+                                edit_kw = st.selectbox("Keyword", options=keywords, 
+                                                     index=keywords.index(q_kw) if q_kw in keywords else 0, 
+                                                     key=f"edit_kw_{q_id}")
+                                edit_text = st.text_input("질문", value=q_txt, key=f"edit_text_{q_id}")
+                                edit_type = st.selectbox(
+                                    "질문 유형",
+                                    ["single_choice", "multi_choice", "long_answer"],
+                                    index=["single_choice", "multi_choice", "long_answer"].index(q_type_db),
+                                    key=f"edit_type_{q_id}"
+                                )
+
+                                if edit_type == "long_answer":
+                                    edit_opts = ""
+                                else:
+                                    edit_opts = st.text_input("옵션", value=q_opts, key=f"edit_opts_{q_id}")
 
                             col1, col2 = st.columns([1, 1])
                             with col1:
-                                if st.button("수정 완료", key=f"save_{q_id}"):
+                                if st.button("수정 완료", key=f"save_{q_id}", 
+                                           type="primary"):
                                     if edit_kw not in keywords:
                                         st.error(f"'{edit_kw}' 는 키워드 목록에 없습니다. '(존재하지 않는 키워드)' 를 키워드 목록에 추가해주세요.")
                                     else:
@@ -236,33 +258,54 @@ def admin_manage_questions():
                                 if st.button("취소", key=f"cancel_{q_id}"):
                                     st.session_state[f"editing_{q_id}"] = False
                                     st.rerun()
-                                
-                    else:
-                        col_info, col_edit, col_delete = st.columns([6, 0.5, 0.5])
+                            
+                        else:
+                            col_info, col_buttons = st.columns([5, 1])
 
-                        with col_info:
-                            st.write(f"**질문 ID**: {q_id}")
-                            st.write(f"**질문 내용**: {q_txt}")
-                            st.write(f"**Keyword**: {q_kw}")
-                            st.write(f"**유형**: {q_type_kor}")
-                            if q_opts:
-                                st.write(f"**옵션**: {q_opts}")
+                            with col_info:
+                                st.markdown(f"""
+                                    <div style="padding: 10px 0;">
+                                        <p style='color: #666; font-size: 0.9em; margin: 0;'>ID: {q_id}</p>
+                                        <div style='display: flex; gap: 10px; margin: 8px 0;'>
+                                            <span style='background-color: #D1F2EB; color: #16A085; 
+                                                    padding: 3px 10px; border-radius: 12px; font-size: 0.9em;'>
+                                                {q_type_kor}
+                                            </span>
+                                            <span style='background-color: #D1F2EB; color: #16A085; 
+                                                    padding: 3px 10px; border-radius: 12px; font-size: 0.9em;'>
+                                                {q_kw}
+                                            </span>
+                                        </div>
+                                        <p style='font-size: 1.1em; margin: 8px 0;'>{q_txt}</p>
+                                        {f"<p style='color: #666; font-size: 0.9em; margin-top: 8px;'>옵션: {q_opts}</p>" if q_opts else ""}
+                                    </div>
+                                """, unsafe_allow_html=True)
 
-                        with col_edit:
-                            if st.button("수정", key=f"edit_{q_id}"):
-                                st.session_state[f"editing_{q_id}"] = True
-                                st.rerun()
+                            with col_buttons:
+                                st.markdown("""
+                                    <div style='display: flex; gap: 10px; justify-content: flex-end; 
+                                            align-items: center; height: 100%;'>
+                                """, unsafe_allow_html=True)
+                                if st.button("수정", key=f"edit_{q_id}", 
+                                           help="질문 수정"):
+                                    st.session_state[f"editing_{q_id}"] = True
+                                    st.rerun()
+                                if st.button("삭제", key=f"delete_{q_id}", 
+                                           help="질문 삭제"):
+                                    resp_del = requests.delete(f"{API_BASE_URL}/questions/{q_id}")
+                                    if resp_del.status_code == 200 and resp_del.json().get("success"):
+                                        st.rerun()
+                                    else:
+                                        st.error("질문 삭제 실패")
+                                st.markdown("</div>", unsafe_allow_html=True)
 
-                        with col_delete:
-                            if st.button("삭제", key=f"delete_{q_id}"):
-                                resp_del = requests.delete(f"{API_BASE_URL}/questions/{q_id}")
-                                if resp_del.status_code == 200 and resp_del.json().get("success"):
-                                    pass
-                                else:
-                                    st.error("질문 삭제 실패")
-                                st.rerun()
-
-                    st.divider()
+                        if not is_editing:
+                            st.markdown("""
+                                <hr style='margin: 8px 0; 
+                                         border: none; 
+                                         border-top: 1px solid #e0e0e0; 
+                                         background-color: transparent;'>
+                            """, unsafe_allow_html=True)
             else:
                 st.error("질문 목록 조회 실패")
 
