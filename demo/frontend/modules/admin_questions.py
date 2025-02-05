@@ -130,7 +130,7 @@ def admin_manage_questions():
             if st.button("파일로 질문 추가", key="add_question_from_pdf_button"):
                 st.session_state.page = "question_add_from_pdf"
                 st.rerun()
-            
+                
             # 기존 질문 목록 표시
             resp = requests.get(f"{API_BASE_URL}/questions")
             if resp.status_code == 200 and resp.json().get("success"):

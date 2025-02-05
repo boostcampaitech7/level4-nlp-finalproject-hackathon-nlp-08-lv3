@@ -127,12 +127,117 @@ def process_selected_questions():
     return selected_questions
 
 def question_add_from_pdf_page():
-    st.title("파일로 질문 추가")
-    
+    st.markdown("""
+    <style>
+        .header-container {
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 10px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([8, 2])  
+
+    with col1:
+        st.markdown("<h1 style='margin: 0;'>📂 파일로 질문 추가</h1>", unsafe_allow_html=True)
+
+    with col2:
+        if st.button("🔙 리뷰 관리로 돌아가기", key="back_to_review"):
+            st.session_state.page = "admin_manage_questions"  # 페이지 변경
+            st.rerun()  # 즉시 새로고침
+
     uploaded_file = st.file_uploader(
-        "파일 업로드",
+        "",
         type=["pdf", "jpeg", "png", "bmp", "tiff", "heic", "docx", "xlsx", "pptx"]
     )
+
+    st.markdown("### 📌 파일 업로드 안내")
+    st.markdown("""
+- **업로드할 파일은 아래 예시와 같은 형식일수록 정확하게 가져올 수 있습니다.**  
+- 파일의 내용이 평가 요소, 선택지 등을 포함하고 있는지 확인해주세요.
+
+예시:
+""")
+
+    example_data = [
+        ["업적", "소관 업무를 주도적으로 처리하는가?", "", "", "", "", ""],
+        ["업적", "적극적이고 도전적인 업무를 계획하는가?", "", "", "", "", ""],
+        ["능력", "최신 정보를 지속적으로 수집하는가?", "", "", "", "", ""],
+        ["능력", "새로운 테마 개발을 끊임없이 하는가?", "", "", "", "", ""],
+        ["태도", "주어진 업무를 성실히 수행하는가?", "", "", "", "", ""]
+    ]
+
+    # HTML 테이블 생성
+    table_html = """
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 모든 열의 크기를 일정하게 유지 */
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: center !important; /* 강제 가운데 정렬 */
+            vertical-align: middle !important; /* 세로 정렬 */
+            word-wrap: break-word; /* 긴 단어 자동 줄바꿈 */
+            display: table-cell; /* 강제 정렬을 위해 셀을 블록 요소로 설정 */
+            font-weight: bold !important; /* 모든 텍스트 볼드체 적용 */
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+    <table>
+        <tr>
+            <th style="width: 10%;">구분</th>
+            <th style="width: 40%;">평가 요소</th>
+            <th style="width: 10%;">매우우수</th>
+            <th style="width: 10%;">우수</th>
+            <th style="width: 10%;">보통</th>
+            <th style="width: 10%;">미흡</th>
+            <th style="width: 10%;">매우미흡</th>
+        </tr>
+    """
+
+    # 같은 카테고리 병합 로직
+    prev_category = None
+    rowspan_dict = {}
+
+    for row in example_data:
+        category, question, *choices = row
+
+        if category == prev_category:
+            rowspan_dict[category] += 1
+        else:
+            rowspan_dict[category] = 1
+        
+        prev_category = category
+
+    # 테이블 내용 추가
+    prev_category = None
+    for row in example_data:
+        category, question, *choices = row
+        
+        table_html += "<tr>"
+
+        # "구분" 병합 처리
+        if category != prev_category:
+            table_html += f'<td rowspan="{rowspan_dict[category]}">{category}</td>'
+
+        table_html += f"<td>{question}</td>"
+        table_html += "".join(f"<td>{choice}</td>" for choice in choices)  # 빈칸 추가
+        table_html += "</tr>"
+
+        prev_category = category
+
+    table_html += "</table>"
+
+    # HTML 테이블 표시
+    st.markdown(table_html, unsafe_allow_html=True)
+
 
     if uploaded_file is not None:
         if uploaded_file.size > 50 * 1024 * 1024:
