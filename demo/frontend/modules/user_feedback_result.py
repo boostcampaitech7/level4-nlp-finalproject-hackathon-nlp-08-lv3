@@ -5,7 +5,7 @@ import ast  # 문자열 리스트를 실제 리스트로 변환
 import base64  # 버튼 스타일 적용을 위한 base64 변환
 
 def user_view_my_feedback():
-    st.subheader("📋 리뷰 결과")
+    st.write("## 📋 리뷰 결과")
 
     my_uname = st.session_state.get("username", None)
     pdf_path = os.path.join(os.path.dirname(__file__), f"../../backend/pdf/{my_uname}.pdf")
@@ -86,7 +86,6 @@ def user_view_my_feedback():
 
     # 🔹 피드백 내용만 표시
     st.subheader("💬 상세 피드백")
-
     # CSS 스타일 적용
     gray_box_style = """
         <style>
