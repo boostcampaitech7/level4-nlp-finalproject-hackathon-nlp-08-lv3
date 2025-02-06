@@ -4,21 +4,17 @@ import base64
 import re
 from concurrent import futures
 from mailjet_rest import Client
-from dotenv import load_dotenv
 from openai import OpenAI
+import logging
+from dotenv import load_dotenv
 
-env_path = os.path.join(os.path.dirname(__file__), '.env')
-load_dotenv(env_path)
-
-# API KEY 및 DB 경로 설정
-MAILJET_API_KEY = os.getenv('MAILJET_API_KEY')
-MAILJET_SECRET_KEY = os.getenv('MAILJET_SECRET_KEY')
+load_dotenv()
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf")
 
 # 이메일 발신자 설정
-SENDER_EMAIL = os.getenv('SENDER_EMAIL')
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_NAME = "인사팀"
 
 # Solar API 설정
@@ -28,7 +24,19 @@ solar_client = OpenAI(
 )
 
 # Mailjet 클라이언트 초기화
-mailjet = Client(auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), version='v3.1')
+def get_mailjet_client():
+    """데이터베이스에서 Mailjet 키를 조회하여 클라이언트 생성"""
+    conn = sqlite3.connect(USER_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT api_key, secret_key FROM mailjet_keys ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if row:
+            return Client(auth=(row['api_key'], row['secret_key']), version='v3.1')
+        return None
+    finally:
+        conn.close()
 
 def get_db_connection():
     """데이터베이스 연결을 생성합니다."""
@@ -149,6 +157,11 @@ def send_admin_notification(success_count):
     """관리자에게 보고서 전송 완료 알림을 보냅니다."""
     admin_emails = get_admin_emails()
     
+    mailjet = get_mailjet_client()
+    if not mailjet:
+        logging.error("Mailjet credentials not found in database")
+        return 0      
+     
     if not admin_emails:
         print("관리자 이메일을 찾을 수 없습니다.")
         return
@@ -182,7 +195,13 @@ def send_single_email(args):
     if not os.path.exists(pdf_path):
         print(f"PDF 파일을 찾을 수 없습니다: {username}")
         return 0
-        
+    
+    mailjet = get_mailjet_client()
+    
+    if not mailjet:
+        logging.error("Mailjet credentials not found in database")
+        return 0    
+    
     with open(pdf_path, 'rb') as pdf_file:
         encoded_file = base64.b64encode(pdf_file.read()).decode('utf-8')
         
@@ -234,7 +253,7 @@ def send_report_emails():
     ]
     
     # ThreadPoolExecutor를 사용하여 병렬로 이메일 전송
-    with futures.ThreadPoolExecutor(max_workers = min(os.cpu_count() or 4, 8)) as executor:
+    with futures.ThreadPoolExecutor(max_workers=5) as executor:
         results = list(executor.map(send_single_email, email_args))
     
     success_count = sum(results)
