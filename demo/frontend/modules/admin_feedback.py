@@ -24,7 +24,20 @@ def admin_view_feedback():
         if not filtered_users:
             st.info("일반 사용자 계정이 없습니다.")
             return
-        name_map = {u["name"]: u["username"] for u in filtered_users}
+        # 그룹 정보를 먼저 조회
+        group_response = requests.get(f"{API_BASE_URL}/groups")
+        if group_response.status_code == 200 and group_response.json().get("success"):
+            groups = {g["id"]: g for g in group_response.json()["groups"]}
+        else:
+            st.error("그룹 정보를 불러오는 데 실패했습니다.")
+            return
+
+        # 이름과 그룹명을 함께 표시하도록 수정
+        name_map = {}
+        for u in filtered_users:
+            group_name = groups.get(u.get("group_id"), {"group_name": "미지정"})["group_name"]
+            display_name = f"{u['name']} ({group_name})"
+            name_map[display_name] = u["username"]
         
         feedback_matrix = []
         completed_users = []
@@ -32,14 +45,6 @@ def admin_view_feedback():
         incomplete_users = []
         
         group_completion = {}  # 그룹별 완료 상태 저장
-
-        # 그룹 이름 조회
-        group_response = requests.get(f"{API_BASE_URL}/groups")
-        if group_response.status_code == 200 and group_response.json().get("success"):
-            groups = {g["id"]: g["group_name"] for g in group_response.json()["groups"]}
-        else:
-            st.error("그룹 정보를 불러오는 데 실패했습니다.")
-            return
 
         for from_user in filtered_users:
             row = []
@@ -54,40 +59,85 @@ def admin_view_feedback():
                         row.append(0)
             feedback_matrix.append(row)
         
-        df_status = pd.DataFrame(feedback_matrix, columns=[u["name"] for u in filtered_users], index=[u["name"] for u in filtered_users])
+        df_status = pd.DataFrame(feedback_matrix, 
+            columns=[f"{u['name']} ({groups.get(u.get('group_id'), {'group_name': '미지정'})['group_name']})" for u in filtered_users],
+            index=[f"{u['name']} ({groups.get(u.get('group_id'), {'group_name': '미지정'})['group_name']})" for u in filtered_users])
         
         for user in filtered_users:
             user_group_id = user.get("group_id")
+            display_name = f"{user['name']} ({groups.get(user_group_id, {'group_name': '미지정'})['group_name']})"
             if user_group_id:
                 group_users = [u for u in filtered_users if u.get("group_id") == user_group_id]
-                feedbacks = df_status.loc[user["name"], [u["name"] for u in group_users]].dropna()
+                feedbacks = df_status.loc[display_name, [f"{u['name']} ({groups.get(u.get('group_id'), {'group_name': '미지정'})['group_name']})" for u in group_users]].dropna()
                 feedback_count = feedbacks.sum()  # 1인 값의 개수
                 total_members = len(feedbacks)  # 그룹 내 멤버 수
                 if feedback_count == total_members:  # 모든 사람이 완료
-                    completed_users.append(user["name"])
+                    completed_users.append(display_name)
                 elif feedback_count > 0:  # 최소 1명이라도 완료한 경우 (일부만 완료됨)
-                    in_progress_users.append(user["name"])
+                    in_progress_users.append(display_name)
                 else:  # 아무도 완료하지 않은 경우
-                    incomplete_users.append(user["name"])
+                    incomplete_users.append(display_name)
             else:
-                incomplete_users.append(user["name"])
+                incomplete_users.append(display_name)
 
         # 그룹별 완료 상태 저장
-        for group_id, group_name in groups.items():
-            group_users = [u["name"] for u in filtered_users if u.get("group_id") == group_id]
-            if all(user in completed_users for user in group_users):
-                group_completion[group_id] = {"group_name": group_name, "status": "완료"}
-            elif all(user in incomplete_users for user in group_users):
-                group_completion[group_id] = {"group_name": group_name, "status": "미완료"}
+        for group_id, group_info in groups.items():
+            group_users = [u for u in filtered_users if u.get("group_id") == group_id]
+            if len(group_users) <= 1:  # 그룹 내 사용자가 1명 이하면 완료로 처리
+                group_completion[group_id] = {"group_name": group_info, "status": "완료"}
+                continue
+                
+            all_completed = True
+            for from_user in group_users:
+                for to_user in group_users:
+                    if from_user["username"] != to_user["username"]:
+                        response = requests.get(
+                            f"{API_BASE_URL}/feedback/check",
+                            params={
+                                "from_username": from_user["username"],
+                                "to_username": to_user["username"]
+                            }
+                        )
+                        if not (response.status_code == 200 and 
+                               response.json().get("success") and 
+                               response.json().get("already_submitted")):
+                            all_completed = False
+                            break
+                if not all_completed:
+                    break
+            
+            if all_completed:
+                group_completion[group_id] = {"group_name": group_info, "status": "완료"}
             else:
-                group_completion[group_id] = {"group_name": group_name, "status": "진행중"}
+                # 진행 상태 확인
+                any_completed = False
+                for from_user in group_users:
+                    for to_user in group_users:
+                        if from_user["username"] != to_user["username"]:
+                            response = requests.get(
+                                f"{API_BASE_URL}/feedback/check",
+                                params={
+                                    "from_username": from_user["username"],
+                                    "to_username": to_user["username"]
+                                }
+                            )
+                            if (response.status_code == 200 and 
+                                response.json().get("success") and 
+                                response.json().get("already_submitted")):
+                                any_completed = True
+                                break
+                    if any_completed:
+                        break
+                
+                status = "진행중" if any_completed else "미완료"
+                group_completion[group_id] = {"group_name": group_info, "status": status}
 
         labels = ['완료', '진행중', '미완료']
         values = [len(completed_users), len(in_progress_users), len(incomplete_users)]
         hover_text = [
-            f"피드백 완료 사용자: {', '.join(completed_users) if completed_users else '없음'}",
-            f"피드백 진행중 사용자: {', '.join(in_progress_users) if in_progress_users else '없음'}",
-            f"피드백 미완료 사용자: {', '.join(incomplete_users) if incomplete_users else '없음'}"
+            f"피드백 완료 사용자:<br>" + "<br>".join(completed_users) if completed_users else "피드백 완료 사용자: 없음",
+            f"피드백 진행중 사용자:<br>" + "<br>".join(in_progress_users) if in_progress_users else "피드백 진행중 사용자: 없음",
+            f"피드백 미완료 사용자:<br>" + "<br>".join(incomplete_users) if incomplete_users else "피드백 미완료 사용자: 없음"
         ]
 
         fig_user = go.Figure(
@@ -108,7 +158,7 @@ def admin_view_feedback():
         group_hover_text = {"완료": [], "진행중": [], "미완료": []}
         for group_id, info in group_completion.items():
             group_counts[info["status"]] += 1
-            group_hover_text[info["status"]].append(info["group_name"])
+            group_hover_text[info["status"]].append(info["group_name"]["group_name"])
 
         fig_group = go.Figure(
             data=[go.Pie(
@@ -117,7 +167,7 @@ def admin_view_feedback():
                 hole=0.5,
                 textinfo="value",
                 hoverinfo="label+percent",
-                hovertext=[f"{status}: {', '.join(names)}" for status, names in group_hover_text.items()],
+                hovertext=[f"{status}:<br>" + "<br>".join(names) for status, names in group_hover_text.items()],
                 hovertemplate='%{hovertext}<extra></extra>'
             )]
         )
