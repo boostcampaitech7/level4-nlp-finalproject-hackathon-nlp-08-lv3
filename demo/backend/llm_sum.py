@@ -1,12 +1,13 @@
 import pandas as pd
 import re
-# import os
+import os
+import sqlite3
 import getpass
-# import numpy as np
 from langchain_upstage import UpstageDocumentParseLoader, ChatUpstage, UpstageEmbeddings
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from sklearn.metrics.pairwise import cosine_similarity
+import time
 
 def summarize_multiple(data_list):
     """
@@ -27,32 +28,66 @@ def summarize_multiple(data_list):
         """
     )
     chat_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("human", "{text}"),
-    ]
+        [
+            ("human", "{text}"),
+        ]
     )
     llm_chain = prompt_template | llm | StrOutputParser()
 
-    solar_text = f"""
-    achievement: {data_dict.get('업적')}
-    manner: {data_dict.get('태도')}
-    ability: {data_dict.get('능력')}
-    leadership: {data_dict.get('리더십')}
-    cooperation: {data_dict.get('협업')}
-    """
+    # Get connection to feedback.db
+    conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), "db/feedback.db"))
+    cur = conn.cursor()
+    
+    # Get keywords from feedback_questions table
+    cur.execute("SELECT keyword, question_text FROM feedback_questions WHERE keyword != '' AND question_type = 'single_choice'")
+    keyword_pairs = cur.fetchall()
+    conn.close()
+    
+    # Build the solar_text dynamically
+    solar_text_lines = []
+    for keyword, question_text in keyword_pairs:
+        value = data_dict.get(question_text)
+        if value is not None:
+            solar_text_lines.append(f"{keyword}: {value}")
+    
+    solar_text = "\n    " + "\n    ".join(solar_text_lines)
 
+    # 지수 백오프를 적용하는 while 루프
+    wait_time = 1
     while True:
-        response = llm_chain.invoke({"text": solar_text})
-        if not re.search(r'\d', response):  # 숫자가 포함되지 않도록 확인
+        try:
+            response = llm_chain.invoke({"text": solar_text})
+        except Exception as e:
+            # 에러 메시지에 429 또는 too_many_requests 가 포함되면 백오프 적용
+            if "429" in str(e) or "too_many_requests" in str(e):
+                time.sleep(wait_time)
+                wait_time *= 2
+                continue
+            else:
+                raise
+        # 응답에 숫자가 포함되지 않으면 성공으로 간주
+        if not re.search(r'\d', response):
             break
+    # 번역 체인에도 동일하게 적용 (필요 시)
+    wait_time = 1
     translate_chain = chat_prompt | enko_translation | StrOutputParser()
-    trans_response = translate_chain.invoke({"text": response})
+    while True:
+        try:
+            trans_response = translate_chain.invoke({"text": response})
+        except Exception as e:
+            if "429" in str(e) or "too_many_requests" in str(e):
+                time.sleep(wait_time)
+                wait_time *= 2
+                continue
+            else:
+                raise
+        break
     
     return trans_response
 
-def summarize_subjective(data_list): # 한 사람의 데이터만 들어옴, key: 질문 번호, value: 답변 리스트
+def summarize_subjective(data_list):
     """
-    주관식 문항 요약 함수, 추후 pdf.py에 합쳐보고 수정 필요
+    주관식 문항 요약 함수, 한 사람의 데이터만 들어옴, key: 질문 번호, value: 답변 리스트
     """
     
     # 리스트를 딕셔너리로 변환
@@ -62,7 +97,7 @@ def summarize_subjective(data_list): # 한 사람의 데이터만 들어옴, key
     prompt_template = PromptTemplate.from_template(
         """
         너는 훌륭한 요약 전문가야.
-        아래는 개인이 받은 능력 평가야. 이 내용을 바탕으로 장점 또는 개선할 점을 포함해 1~2줄 요약을 해줘.
+        아래는 개인이 받은 능력 평가야. 이 내용을 바탕으로 장점 또는 개선할 점을 포함해 1~2줄 요약해줘.
         공식문서 말투로 작성해줘. 답변에 ':'을 넣지 마.
         ---
         TEXT: {text}
@@ -76,18 +111,27 @@ def summarize_subjective(data_list): # 한 사람의 데이터만 들어옴, key
     for idx, key in enumerate(sorted(data_dict.keys())):
         if key.startswith("q_"):
             solar_text = f"characteristic{idx + 1}: {data_dict[key]}"
+            wait_time = 1
             while True:
-                response = llm_chain.invoke({"text": solar_text})
+                try:
+                    response = llm_chain.invoke({"text": solar_text})
+                except Exception as e:
+                    if "429" in str(e) or "too_many_requests" in str(e):
+                        time.sleep(wait_time)
+                        wait_time *= 2
+                        continue
+                    else:
+                        raise
                 if not re.search(':', response):
                     break
             responses.append({"question": key, "response": response})
 
     return responses
 
-
 def normalize_tone(data_list):
     """
     말투 정규화 함수, 추후 pdf.py에 합쳐보고 수정 필요
+    (원본 코드 유지)
     """
     
     # 리스트를 딕셔너리로 변환
@@ -112,11 +156,19 @@ def normalize_tone(data_list):
         value_lst = data_dict.get(key)
         tmp_lst = []
         for original in value_lst:
+            wait_time = 1
             while True:
-                response = llm_chain.invoke({"text": original})
+                try:
+                    response = llm_chain.invoke({"text": original})
+                except Exception as e:
+                    if "429" in str(e) or "too_many_requests" in str(e):
+                        time.sleep(wait_time)
+                        wait_time *= 2
+                        continue
+                    else:
+                        raise
                 vector1 = embedding_model.embed_query(original)
                 vector2 = embedding_model.embed_query(response)
-                # 벡터를 2D 배열로 변환하여 코사인 유사도 계산
                 cosine_sim = cosine_similarity([vector1], [vector2])[0][0]
                 if abs(cosine_sim) >= 0.8:
                     break
