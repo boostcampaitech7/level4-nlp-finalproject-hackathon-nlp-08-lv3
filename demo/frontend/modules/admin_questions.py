@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 API_BASE_URL = "http://localhost:5000/api"

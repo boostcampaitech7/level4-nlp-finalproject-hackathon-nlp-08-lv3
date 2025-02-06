@@ -11,10 +11,10 @@ import time
 import streamlit as st
 from dotenv import load_dotenv
 import requests
-
+import os
 from streamlit_option_menu import option_menu
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
 
 API_BASE_URL = "http://localhost:5000/api"
 

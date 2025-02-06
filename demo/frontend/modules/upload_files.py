@@ -7,7 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import time
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 API_BASE_URL = "http://localhost:5000/api"

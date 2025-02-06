@@ -8,7 +8,7 @@ from tqdm import tqdm
 import time
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
 
 # API KEY 및 파일 경로 설정
 KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")

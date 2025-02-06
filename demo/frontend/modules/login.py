@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 import base64
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 API_BASE_URL = "http://localhost:5000/api"
