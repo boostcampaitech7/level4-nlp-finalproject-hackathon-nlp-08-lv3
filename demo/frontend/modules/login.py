@@ -38,7 +38,9 @@ def login_page():
     )
     
     # 상단 로고 중앙 정렬
-    file_path = "modules/logo.png"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    image_dir = os.path.join(base_dir, "images")
+    file_path = os.path.join(image_dir, "logo.png")
     if os.path.exists(file_path):
         st.markdown(
             f"""
