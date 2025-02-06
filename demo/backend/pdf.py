@@ -7,6 +7,7 @@ import platform
 import sqlite3
 from subprocess import run
 from threading import Semaphore
+import time
 
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
@@ -60,7 +61,7 @@ PDF_DIR = os.path.join(BASE_DIR, "pdf")
 
 def run_script_if_file_not_exists(file_name, script_name):
     if not os.path.exists(file_name):
-        subprocess.run(["python", script_name])
+        run(["python", script_name])
     else:
         pass
 
@@ -108,8 +109,9 @@ def call_get_book_recommendation(username, lowest_keyword):
 def draw_logo(c, width, height):
     """ 오른쪽 하단에 로고 이미지 추가하는 함수 """
     try:
-        current_dir = os.path.dirname(os.path.abspath(__file__)) 
-        logo_path = os.path.join(current_dir, "logo.png")
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        image_dir = os.path.join(base_dir, "images")
+        logo_path = os.path.join(image_dir, "logo.png")
 
         if not os.path.exists(logo_path):
             raise FileNotFoundError(f"로고 파일이 존재하지 않습니다: {logo_path}")
@@ -132,8 +134,9 @@ def draw_profile_box(c, data, width, height):
     styles = getSampleStyleSheet()
     
     # 프로필 이미지 추가
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    image_path = os.path.join(current_dir, "profile.png")
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    image_dir = os.path.join(base_dir, "images")
+    image_path = os.path.join(image_dir, "profile.png")
     img_width, img_height = 100, 100
     c.drawImage(ImageReader(image_path), 50, height-80, width=img_width, height=img_height)
 
