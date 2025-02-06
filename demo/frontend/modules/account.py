@@ -50,17 +50,33 @@ def create_account_page():
         return re.match(pattern, email) is not None
 
     if st.button("계정 생성", key="create_account_btn"):
+        if not new_username:
+            st.error("아이디를 입력해주세요.")
+            return
+        if not new_name:
+            st.error("이름을 입력해주세요.")
+            return
+        if not new_email:
+            st.error("이메일을 입력해주세요.")
+            return
         if not is_valid_email(new_email):
             st.error("올바른 이메일 형식이 아닙니다.")
+            return
+        if not new_password:
+            st.error("비밀번호를 입력해주세요.")
+            return
+        if not is_valid_email(new_email):
+            st.error("올바른 이메일 형식이 아닙니다.")
+            return
+
+        if new_role == "user" and selected_group == "선택":
+            st.error("부서를 선택해주세요.")
             return
 
         if new_role == "admin":
             if admin_key_input != ADMIN_KEY:
                 st.error("관리자 key가 올바르지 않습니다.")
                 return
-        if new_role == "user" and selected_group == "선택":
-            st.error("부서를 선택해주세요.")
-            return
 
         payload = {
             "username": new_username,
@@ -71,6 +87,29 @@ def create_account_page():
             "group_id": group_options[selected_group] if new_role == "user" else None,
             "rank": selected_rank if new_role == "user" else None
         }
+
+        # 아이디 중복 확인
+        username_resp = requests.get(f"{API_BASE_URL}/check_username", params={"username": new_username})
+        if username_resp.status_code == 200:
+            username_data = username_resp.json()
+            if not username_data["available"]:
+                st.error("이미 사용 중인 아이디입니다.")
+                return
+        else:
+            st.error("아이디 중복 확인 중 오류가 발생했습니다.")
+            return
+
+        # 이메일 중복 확인
+        email_resp = requests.get(f"{API_BASE_URL}/check_email", params={"email": new_email})
+        if email_resp.status_code == 200:
+            email_data = email_resp.json()
+            if not email_data["available"]:
+                st.error("이미 사용 중인 이메일입니다.")
+                return
+        else:
+            st.error("이메일 중복 확인 중 오류가 발생했습니다.")
+            return
+
         resp = requests.post(f"{API_BASE_URL}/create_account", json=payload)
         if resp.status_code == 200:
             data = resp.json()
