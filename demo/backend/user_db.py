@@ -84,3 +84,16 @@ def seed_users_data():
 
     conn.commit()
     conn.close()
+    
+def init_mailjet_table():
+    conn = get_connection()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS mailjet_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            api_key TEXT NOT NULL,
+            secret_key TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
