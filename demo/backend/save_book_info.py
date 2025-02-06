@@ -10,14 +10,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# API 키 설정
+# API KEY 및 파일 경로 설정
 KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BOOK_CHUNK_DIR = os.path.join(BASE_DIR, "book_chunk")
 
-# Solar Embeddings 클라이언트 설정
+# Solar Embeddings 설정
 solar_client = OpenAI(
     api_key=UPSTAGE_API_KEY,
     base_url="https://api.upstage.ai/v1/solar"
@@ -68,26 +67,37 @@ def fetch_books_by_keyword(keyword, total_count=300):
     
     return all_books
 
-def create_embedding(text, timeout=5):
-    """텍스트의 임베딩을 생성하는 함수 (제한시간 5초)"""
-    start_time = time.time()
-    
-    try:
-        embedding_response = solar_client.embeddings.create(
-            input=text,
-            model="embedding-passage"
-        )
+from functools import lru_cache
+
+@lru_cache(maxsize=1000)
+def create_embedding(text, max_retries=3, base_timeout=10):
+    """텍스트의 임베딩을 생성하는 함수 (캐싱 적용, 재시도 메커니즘 포함)"""
+    for attempt in range(max_retries):
+        start_time = time.time()
+        timeout = base_timeout * (attempt + 1)  # 재시도마다 타임아웃 증가
         
-        processing_time = time.time() - start_time
-        if processing_time > timeout:
-            print(f"\n경고: 임베딩 처리 시간 초과 ({processing_time:.2f}초)")
-            return None
+        try:
+            embedding_response = solar_client.embeddings.create(
+                input=text,
+                model="embedding-passage"
+            )
             
-        return embedding_response.data[0].embedding
-        
-    except Exception as e:
-        print(f"\n임베딩 생성 중 오류 발생: {str(e)}")
-        return None
+            processing_time = time.time() - start_time
+            if processing_time > timeout:
+                print(f"\n경고: 임베딩 처리 시간 초과 ({processing_time:.2f}초), 재시도 {attempt + 1}/{max_retries}")
+                continue
+                
+            # 캐싱을 위해 tuple로 변환
+            return tuple(embedding_response.data[0].embedding)
+            
+        except Exception as e:
+            print(f"\n임베딩 생성 중 오류 발생 ({attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(1)  # 재시도 전 잠시 대기
+                continue
+            return None
+    
+    return None
 
 def load_existing_books():
     """청크 파일들로부터 모든 도서 데이터를 로드하는 함수"""
@@ -126,6 +136,7 @@ def process_and_save_books_in_chunks():
     chunk_size = 1000
     processed_isbns = set()
     total_processed = 0
+    keyword_stats = {}
     
     # 저장 디렉토리 생성
     os.makedirs(BOOK_CHUNK_DIR, exist_ok=True)
@@ -158,12 +169,15 @@ def process_and_save_books_in_chunks():
         for keyword_idx, keyword in enumerate(unique_keywords, 1):
             print(f"\n=== 키워드 {keyword_idx}/{len(unique_keywords)}: '{keyword}' 처리 중 ===")
             current_chunk = {}
+            keyword_stats[keyword] = {'total': 0, 'new': 0, 'processed': 0}
             
             # 키워드로 도서 검색
             books = fetch_books_by_keyword(keyword)
+            keyword_stats[keyword]['total'] = len(books)
             print(f"- 검색된 도서: {len(books)}개")
             
             new_books = 0
+            processed_in_keyword = 0
             with tqdm(books, desc="도서 처리", unit="권") as pbar:
                 for book in pbar:
                     isbn = book.get('isbn', '').split(" ")[0]
@@ -171,15 +185,16 @@ def process_and_save_books_in_chunks():
                         continue
                         
                     current_chunk[isbn] = book
-                    new_books += 1
                     
                     # 청크 크기에 도달하면 처리 및 저장
                     if len(current_chunk) >= chunk_size:
                         print("\n- 청크 처리 중...")
-                        processed_chunk = process_chunk(current_chunk.values())
+                        processed_chunk = process_chunk(list(current_chunk.values()))
                         if processed_chunk:
                             save_chunk(processed_chunk, chunk_number)
                             processed_isbns.update(processed_chunk.keys())
+                            processed_in_keyword += len(processed_chunk)
+                            new_books += len(processed_chunk)
                             total_processed += len(processed_chunk)
                             chunk_number += 1
                         current_chunk = {}
@@ -187,21 +202,26 @@ def process_and_save_books_in_chunks():
             # 남은 데이터 처리
             if current_chunk:
                 print("\n- 남은 도서 처리 중...")
-                processed_chunk = process_chunk(current_chunk.values())
+                processed_chunk = process_chunk(list(current_chunk.values()))
                 if processed_chunk:
                     save_chunk(processed_chunk, chunk_number)
                     processed_isbns.update(processed_chunk.keys())
+                    processed_in_keyword += len(processed_chunk)
                     total_processed += len(processed_chunk)
                     chunk_number += 1
             
-            print(f"\n- 키워드 '{keyword}' 처리 완료")
-            print(f"- 새로 추가된 도서: {new_books}개")
+            keyword_stats[keyword].update({
+                'new': new_books,
+                'processed': processed_in_keyword
+            })
+            
+            print(f"키워드 '{keyword}' 처리 완료")
             
     except KeyboardInterrupt:
         print("\n\n=== 사용자에 의해 중단됨 ===")
         if current_chunk:
             print("- 마지막 청크 저장 중...")
-            processed_chunk = process_chunk(current_chunk.values())
+            processed_chunk = process_chunk(list(current_chunk.values()))
             if processed_chunk:
                 save_chunk(processed_chunk, chunk_number)
                 total_processed += len(processed_chunk)
@@ -211,7 +231,7 @@ def process_and_save_books_in_chunks():
         print(f"오류 내용: {str(e)}")
         if current_chunk:
             print("- 마지막 청크 저장 중...")
-            processed_chunk = process_chunk(current_chunk.values())
+            processed_chunk = process_chunk(list(current_chunk.values()))
             if processed_chunk:
                 save_chunk(processed_chunk, chunk_number)
                 total_processed += len(processed_chunk)
@@ -239,45 +259,81 @@ def find_similar_books(query_text, top_k=5):
     
     return sorted(similarities, key=lambda x: x[0], reverse=True)[:top_k]
 
-def process_chunk(books):
-    """도서 데이터를 처리하고 임베딩을 생성하는 함수"""
-    chunk_data = {}
-    total_books = len(books)
-    success_count = 0
-    skip_count = 0
-    timeout_count = 0
+from concurrent.futures import ThreadPoolExecutor
+
+def process_single_book(book, max_retries=3):
+    """단일 도서 처리 및 임베딩 생성 (재시도 포함)"""
+    process_start_time = time.time()
     
-    for book in tqdm(books, desc="청크 처리 중", unit="권"):
-        process_start_time = time.time()
+    isbn = book.get("isbn", "").split(" ")[0]
+    if not isbn:
+        return None, "skip"
         
-        isbn = book.get("isbn", "").split(" ")[0]
-        if not isbn:
-            skip_count += 1
-            continue
-            
-        contents = book.get("contents", "")
-        if not contents:
-            skip_count += 1
-            continue
-            
-        # 임베딩 생성 시간 제한 적용
-        embedding = create_embedding(contents, timeout=5)
+    contents = book.get("contents", "")
+    if not contents:
+        return None, "skip"
+    
+    for attempt in range(max_retries):
+        # 임베딩 생성 (캐싱 적용)
+        embedding = create_embedding(contents)
         if embedding:
-            chunk_data[isbn] = {
+            return {
+                'isbn': isbn,
                 'title': book.get('title'),
                 'authors': book.get('authors'),
                 'publisher': book.get('publisher'),
                 'contents': contents,
                 'thumbnail': book.get('thumbnail'),
-                'embedding': embedding,
-                'isbn': isbn,
+                'embedding': list(embedding),  # tuple을 list로 변환
                 'timestamp': datetime.now().isoformat(),
-                'processing_time': time.time() - process_start_time
-            }
-            success_count += 1
-        else:
-            timeout_count += 1
-            tqdm.write(f"\n도서 '{book.get('title')}' 임베딩 생성 실패 - 건너뛰기")
+                'processing_time': time.time() - process_start_time,
+                'attempts': attempt + 1
+            }, "success"
+        
+        print(f"\n임베딩 생성 실패 ({attempt + 1}/{max_retries}){', 재시도 중...' if attempt < max_retries - 1 else ', 최대 시도 횟수 초과'}")
+        if attempt < max_retries - 1:
+            time.sleep(1)
+    
+    return None, "timeout"
+
+def process_chunk(books):
+    """도서 데이터를 병렬로 처리하고 임베딩을 생성하는 함수"""
+    chunk_data = {}
+    books_list = list(books)  # dict_values를 리스트로 변환
+    total_books = len(books_list)
+    success_count = skip_count = timeout_count = 0
+    
+    if total_books == 0:
+        return chunk_data
+    
+    # 시스템 CPU 코어 수에 따라 worker 수 조정
+    max_workers = min(os.cpu_count() or 4, 8)  # 최대 8개
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # 배치 크기 조정
+        batch_size = 15
+        for i in range(0, total_books, batch_size):
+            batch = books_list[i:i + batch_size]
+            
+            # 배치 단위로 병렬 처리
+            futures = [executor.submit(process_single_book, book) for book in batch]
+            
+            # 결과 수집
+            for future in tqdm(futures, desc=f"배치 처리 중 ({i+1}-{min(i+batch_size, total_books)}/{total_books})", unit="권"):
+                try:
+                    result, status = future.result(timeout=30)  # 타임아웃 설정
+                    
+                    if status == "success" and result is not None:
+                        chunk_data[result['isbn']] = result
+                        success_count += 1
+                    elif status == "skip":
+                        skip_count += 1
+                    else:  # timeout
+                        timeout_count += 1
+                        
+                except Exception as e:
+                    print(f"\n도서 처리 중 오류 발생: {str(e)}")
+                    timeout_count += 1
     
     # 처리 결과 출력
     print(f"\n청크 처리 결과:")
@@ -305,11 +361,3 @@ if __name__ == "__main__":
     end_time = datetime.now()
     processing_time = end_time - start_time
     print(f"\n총 처리 시간: {processing_time}")
-    
-    # 유사 도서 검색 예시
-    # query = "리더십과 팀워크의 중요성"
-    # similar_books = find_similar_books(query)
-    # for similarity, book in similar_books:
-    #     print(f"\n유사도: {similarity:.4f}")
-    #     print(f"제목: {book['title']}")
-    #     print(f"저자: {', '.join(book['authors'])}")
