@@ -2,7 +2,6 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 import requests
-from dotenv import load_dotenv
 import time
 import schedule
 import logging
@@ -10,20 +9,24 @@ from mailjet_rest import Client
 from collections import defaultdict
 import pytz
 
-# Load environment variables from frontend/.env
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend', '.env')
-load_dotenv(env_path)
-
-# Constants
-MAILJET_API_KEY = os.getenv('MAILJET_API_KEY')
-MAILJET_SECRET_KEY = os.getenv('MAILJET_SECRET_KEY')
 FEEDBACK_DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 KST = pytz.timezone('Asia/Seoul')
 
-# Initialize Mailjet client
-mailjet = Client(auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), version='v3.1')
-
+def get_mailjet_client():
+    """데이터베이스에서 Mailjet 키를 조회하여 클라이언트 생성"""
+    conn = sqlite3.connect(USER_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT api_key, secret_key FROM mailjet_keys ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if row:
+            return Client(auth=(row['api_key'], row['secret_key']), version='v3.1')
+        return None
+    finally:
+        conn.close()
+        
 def get_db_connection(db_path):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row  # 컬럼명으로 접근 가능하도록 설정
@@ -125,7 +128,12 @@ def send_reminder_emails(targets):
     """여러 대상에게 한 번에 리마인더 이메일을 발송합니다."""
     if not targets:
         return 0
-
+    
+    mailjet = get_mailjet_client()
+    if not mailjet:
+        logging.error("Mailjet credentials not found in database")
+        return 0
+    
     messages = []
     for target in targets:
         deadline_dt = datetime.strptime(target['deadline'], '%Y-%m-%d %H:%M:%S')

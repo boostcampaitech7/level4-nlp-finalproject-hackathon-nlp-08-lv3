@@ -188,13 +188,14 @@ def admin_view_feedback():
         if not st.session_state.pdf_generated:
             if st.button("PDF 생성 시작"):
                 backend_dir = os.path.join(os.path.dirname(__file__), "../../backend")
-                try:
-                    subprocess.run(["python", os.path.join(backend_dir, "pdf_db.py")], check=True)
-                    subprocess.run(["python", os.path.join(backend_dir, "pdf.py")], check=True)
-                    st.session_state.pdf_generated = True
-                    st.success("PDF 생성이 완료되었습니다.")
-                except subprocess.CalledProcessError as e:
-                    st.error(f"PDF 생성 중 오류 발생!\n\n{e}") # 오류 메시지 출력
+                with st.status("PDF 생성 중..."):
+                    try:
+                        subprocess.run(["python", os.path.join(backend_dir, "pdf_db.py")], check=True)
+                        subprocess.run(["python", os.path.join(backend_dir, "pdf.py")], check=True)
+                        st.session_state.pdf_generated = True
+                        st.success("PDF 생성이 완료되었습니다.")
+                    except subprocess.CalledProcessError as e:
+                        st.error(f"PDF 생성 중 오류 발생!\n\n{e}") # 오류 메시지 출력
 
         # PDF가 생성된 경우에만 결과 조회 옵션 표시
         if st.session_state.pdf_generated:

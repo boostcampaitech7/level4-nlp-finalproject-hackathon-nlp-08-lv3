@@ -18,6 +18,7 @@ from routes.submit_feedback_bulk import submit_feedback_bulk_bp
 from routes.groups import groups_bp  
 from routes.summary import summary_bp
 from routes.count_feedback import feedback_count_bp
+from routes.mailjet_key import mailjet_key_bp
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
@@ -85,6 +86,7 @@ app.register_blueprint(submit_feedback_bulk_bp)
 app.register_blueprint(groups_bp)
 app.register_blueprint(summary_bp)
 app.register_blueprint(feedback_count_bp)
+app.register_blueprint(mailjet_key_bp)
 
 
 if __name__ == "__main__":
