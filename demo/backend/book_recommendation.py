@@ -6,11 +6,10 @@ import numpy as np
 import time
 from qa_db import DB_PATH as FEEDBACK_DB_PATH
 from dotenv import load_dotenv
-from common import BOOK_CHUNK_CACHE  # 미리 로드된 청크 캐시 사용
+from common import BOOK_CHUNK_CACHE
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
 
-# Solar API 설정
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 solar_client = OpenAI(
     api_key=UPSTAGE_API_KEY,

@@ -8,7 +8,8 @@ from openai import OpenAI
 import logging
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
+
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 USER_DB_PATH = os.path.join(os.path.dirname(__file__), "db/user.db")
 PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf")

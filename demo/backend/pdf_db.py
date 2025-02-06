@@ -7,7 +7,8 @@ from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 from tqdm import tqdm  # tqdm 추가
 
-load_dotenv()
+load_dotenv('os.path.join(os.path.dirname(__file__), ../.env')
+
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 FEEDBACK_DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
 RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "db/result.db")
