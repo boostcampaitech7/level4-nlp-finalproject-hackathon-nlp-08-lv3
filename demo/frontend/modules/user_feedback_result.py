@@ -1,17 +1,22 @@
-import streamlit as st
-import sqlite3
-import os
 import ast  # 문자열 리스트를 실제 리스트로 변환
 import base64  # 버튼 스타일 적용을 위한 base64 변환
+import os
+import sqlite3
+
+import streamlit as st
+
 
 def user_view_my_feedback():
     st.write("## 📋 리뷰 결과")
 
     my_uname = st.session_state.get("username", None)
-    pdf_path = os.path.join(os.path.dirname(__file__), f"../../backend/pdf/{my_uname}.pdf")
+    pdf_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        f"pdf/{my_uname}.pdf",
+    )
 
     # 🔹 PDF 파일이 존재하는지 확인
-    if os.path.exists(pdf_path):  
+    if os.path.exists(pdf_path):
         # PDF 파일을 읽고 base64로 인코딩 (HTML 버튼 스타일링 적용)
         with open(pdf_path, "rb") as f:
             pdf_bytes = f.read()
@@ -43,10 +48,14 @@ def user_view_my_feedback():
 
     else:
         st.error("PDF 생성에 실패했습니다. 다시 시도해주세요.")
-    
+
     try:
-        RESULT_DB_PATH = os.path.join(os.path.dirname(__file__), "../../backend/db/result.db")
-        FEEDBACK_DB_PATH = os.path.join(os.path.dirname(__file__), "../../backend/db/feedback.db")
+        RESULT_DB_PATH = os.path.join(
+            os.path.dirname(__file__), "../../backend/db/result.db"
+        )
+        FEEDBACK_DB_PATH = os.path.join(
+            os.path.dirname(__file__), "../../backend/db/feedback.db"
+        )
     except Exception as e:
         st.error(f"❌ 경로 설정 중 오류 발생: {e}")
         return
@@ -63,7 +72,7 @@ def user_view_my_feedback():
             # 🔹 사용자별 피드백 데이터 가져오기 (모든 칼럼 동적 로딩)
             query = "SELECT * FROM subjective WHERE to_username = ?"
             cursor_result.execute(query, (my_uname,))
-            feedback_row = cursor_result.fetchone() # 피드백 칼럼 목록 확인
+            feedback_row = cursor_result.fetchone()  # 피드백 칼럼 목록 확인
 
             if not feedback_row:
                 st.warning("❗ 피드백 데이터가 없습니다.")
@@ -77,12 +86,15 @@ def user_view_my_feedback():
             categories = {}
             question_texts = {}
             for keyword in keywords:
-                cursor_feedback.execute("SELECT id, question_text FROM feedback_questions WHERE keyword = ?", (keyword,))
+                cursor_feedback.execute(
+                    "SELECT id, question_text FROM feedback_questions WHERE keyword = ?",
+                    (keyword,),
+                )
                 question_data = cursor_feedback.fetchall()
                 question_ids = [f"q_{row['id']}" for row in question_data]
                 categories[f"📊 {keyword}"] = question_ids  # 카테고리명 동적 생성
                 for row in question_data:
-                    question_texts[f"q_{row['id']}"] = row['question_text']
+                    question_texts[f"q_{row['id']}"] = row["question_text"]
 
     # 🔹 피드백 내용만 표시
     st.subheader("💬 상세 피드백")
@@ -133,14 +145,22 @@ def user_view_my_feedback():
                 if raw_data:
                     try:
                         # 🔹 문자열 형태의 리스트를 실제 리스트로 변환
-                        feedback_items = ast.literal_eval(raw_data) if isinstance(raw_data, str) else raw_data
+                        feedback_items = (
+                            ast.literal_eval(raw_data)
+                            if isinstance(raw_data, str)
+                            else raw_data
+                        )
                         if isinstance(feedback_items, list):
-                            formatted_feedback = "<br><br>".join([f"• {item}" for item in feedback_items])
+                            formatted_feedback = "<br><br>".join(
+                                [f"• {item}" for item in feedback_items]
+                            )
                         else:
                             formatted_feedback = f"• {feedback_items}"
 
                         question_text = question_texts.get(key, "질문 텍스트 없음")
-                        feedback_list.append(f"📌 {question_text} \n\n{formatted_feedback}")
+                        feedback_list.append(
+                            f"📌 {question_text} \n\n{formatted_feedback}"
+                        )
                         # 질문별 박스 스타일 적용
                         st.markdown(
                             f"""
@@ -150,9 +170,9 @@ def user_view_my_feedback():
                                 {formatted_feedback}
                             </div>
                             """,
-                            unsafe_allow_html=True
+                            unsafe_allow_html=True,
                         )
-                        
+
                     except Exception as e:
                         st.error(f"❌ 데이터 변환 오류: {e}")
 

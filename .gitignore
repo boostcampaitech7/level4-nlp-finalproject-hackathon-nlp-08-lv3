@@ -1,12 +1,12 @@
-# Ignore database files
-demo/backend/*.db
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Ignore cache files in routes
-demo/backend/routes/__pycache__/
+# pytest cache
+.pytest_cache/
 
-demo/backend/__pycache__/
-demo/backend/.pytest_cache/
-demo/frontend/modules/__pycache__
-demo/backend/db
-demo/backend/uploads
-demo/backend/pdf
+# Distribution / packaging
+*.egg-info/
+dist/
+build/

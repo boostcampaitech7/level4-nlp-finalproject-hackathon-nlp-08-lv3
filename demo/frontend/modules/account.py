@@ -1,13 +1,15 @@
-import streamlit as st
-import requests
 import os
 import time
+
+import requests
+import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 API_BASE_URL = "http://localhost:5000/api"
+
 
 def account_created_page():
     st.title("계정 생성이 완료되었습니다.")
@@ -17,13 +19,16 @@ def account_created_page():
     st.session_state.page = "login"
     st.rerun()
 
+
 def create_account_page():
     st.title("새 계정 생성 페이지")
 
     new_username = st.text_input("새 계정 아이디(중복 불가)", key="new_username")
     new_name = st.text_input("이름(실명)", key="new_name")
     new_email = st.text_input("이메일", key="new_email")
-    new_password = st.text_input("새 계정 비밀번호", type="password", key="new_password")
+    new_password = st.text_input(
+        "새 계정 비밀번호", type="password", key="new_password"
+    )
     new_role = st.selectbox("새 계정 역할", ["admin", "user"], key="new_role_select")
 
     # 부서 목록 가져오기
@@ -36,17 +41,24 @@ def create_account_page():
             st.error("부서 목록을 가져오는 데 실패했습니다.")
             group_options = {}
 
-        selected_group = st.selectbox("부서 선택", ["선택"] + list(group_options.keys()), key="new_group_select")
-        selected_rank = st.selectbox("직급 선택", ["팀장", "팀원"], key="new_rank_select")
+        selected_group = st.selectbox(
+            "부서 선택", ["선택"] + list(group_options.keys()), key="new_group_select"
+        )
+        selected_rank = st.selectbox(
+            "직급 선택", ["팀장", "팀원"], key="new_rank_select"
+        )
 
     admin_key_input = ""
     if new_role == "admin":
-        admin_key_input = st.text_input("관리자 key 입력", type="password", key="admin_key_input")
+        admin_key_input = st.text_input(
+            "관리자 key 입력", type="password", key="admin_key_input"
+        )
 
     # 이메일 유효성 검사 함수
     def is_valid_email(email):
         import re
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         return re.match(pattern, email) is not None
 
     if st.button("계정 생성", key="create_account_btn"):
@@ -85,11 +97,13 @@ def create_account_page():
             "password": new_password,
             "role": new_role,
             "group_id": group_options[selected_group] if new_role == "user" else None,
-            "rank": selected_rank if new_role == "user" else None
+            "rank": selected_rank if new_role == "user" else None,
         }
 
         # 아이디 중복 확인
-        username_resp = requests.get(f"{API_BASE_URL}/check_username", params={"username": new_username})
+        username_resp = requests.get(
+            f"{API_BASE_URL}/check_username", params={"username": new_username}
+        )
         if username_resp.status_code == 200:
             username_data = username_resp.json()
             if not username_data["available"]:
@@ -100,7 +114,9 @@ def create_account_page():
             return
 
         # 이메일 중복 확인
-        email_resp = requests.get(f"{API_BASE_URL}/check_email", params={"email": new_email})
+        email_resp = requests.get(
+            f"{API_BASE_URL}/check_email", params={"email": new_email}
+        )
         if email_resp.status_code == 200:
             email_data = email_resp.json()
             if not email_data["available"]:

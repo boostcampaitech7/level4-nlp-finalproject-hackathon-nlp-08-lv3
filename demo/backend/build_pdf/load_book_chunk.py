@@ -2,16 +2,18 @@ import os
 import pickle
 from concurrent.futures import ThreadPoolExecutor
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 BOOK_CHUNK_DIR = os.path.join(BASE_DIR, "book_chunk")
 BOOK_CHUNK_CACHE = {}
 
+
 def load_chunk_file(chunk_file):
     try:
-        with open(os.path.join(BOOK_CHUNK_DIR, chunk_file), 'rb') as f:
+        with open(os.path.join(BOOK_CHUNK_DIR, chunk_file), "rb") as f:
             return chunk_file, pickle.load(f)
     except Exception as e:
         return chunk_file, None
+
 
 def load_all_book_chunks():
     """
@@ -20,8 +22,11 @@ def load_all_book_chunks():
     global BOOK_CHUNK_CACHE
     with os.scandir(BOOK_CHUNK_DIR) as it:
         chunk_files = [
-            entry.name for entry in it 
-            if entry.is_file() and entry.name.startswith('books_chunk_') and entry.name.endswith('.pkl')
+            entry.name
+            for entry in it
+            if entry.is_file()
+            and entry.name.startswith("books_chunk_")
+            and entry.name.endswith(".pkl")
         ]
     with ThreadPoolExecutor() as executor:
         results = executor.map(load_chunk_file, chunk_files)
