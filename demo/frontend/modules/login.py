@@ -1,13 +1,15 @@
-import streamlit as st
-import requests
-import os
-from dotenv import load_dotenv
 import base64
+import os
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
+import requests
+import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 API_BASE_URL = "http://localhost:5000/api"
+
 
 def login_page():
     # 중앙 정렬 CSS 스타일 추가
@@ -36,10 +38,12 @@ def login_page():
         """,
         unsafe_allow_html=True,
     )
-    
+
     # 상단 로고 중앙 정렬
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    image_dir = os.path.join(base_dir, "images")
+    base_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    image_dir = os.path.join(base_dir, "image_store")
     file_path = os.path.join(image_dir, "logo.png")
     if os.path.exists(file_path):
         st.markdown(
@@ -63,7 +67,9 @@ def login_page():
 
         with tab_admin:
             admin_username = st.text_input("관리자 아이디", key="admin_username_input")
-            admin_password = st.text_input("비밀번호", type="password", key="admin_password_input")
+            admin_password = st.text_input(
+                "비밀번호", type="password", key="admin_password_input"
+            )
             if st.button("관리자 로그인", key="admin_login_btn"):
                 payload = {"username": admin_username, "password": admin_password}
                 resp = requests.post(f"{API_BASE_URL}/login", json=payload)
@@ -92,7 +98,9 @@ def login_page():
 
         with tab_user:
             user_username = st.text_input("사용자 아이디", key="user_username_input")
-            user_password = st.text_input("비밀번호", type="password", key="user_password_input")
+            user_password = st.text_input(
+                "비밀번호", type="password", key="user_password_input"
+            )
             if st.button("사용자 로그인", key="user_login_btn"):
                 payload = {"username": user_username, "password": user_password}
                 resp = requests.post(f"{API_BASE_URL}/login", json=payload)
@@ -123,6 +131,7 @@ def login_page():
         if st.button("계정 생성"):
             st.session_state.page = "create_account"
             st.rerun()
+
 
 # Helper function to encode image to Base64
 def get_base64_image(file_path):

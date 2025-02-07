@@ -1,11 +1,14 @@
 import os
 import sqlite3
-from user_db import init_users_db, seed_users_data
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "db/feedback.db")
+from .user import init_users_db, seed_users_data
+
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "feedback.db")
+
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
+
 
 def init_db():
     """
@@ -19,7 +22,8 @@ def init_db():
     cur = conn.cursor()
 
     # feedback_questions
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS feedback_questions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         keyword TEXT,
@@ -28,10 +32,12 @@ def init_db():
         options TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-    ''')
+    """
+    )
 
     # feedback_results
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS feedback_results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         question_id INTEGER NOT NULL,
@@ -40,13 +46,17 @@ def init_db():
         answer_content TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-    ''')
+    """
+    )
 
     # feedback_deadline
-    cur.execute('''
+    cur.execute(
+        """
     DROP TABLE IF EXISTS feedback_deadline;
-    ''')
-    cur.execute('''
+    """
+    )
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS feedback_deadline (
         id INTEGER PRIMARY KEY,
         start_date DATETIME NOT NULL,
@@ -55,12 +65,14 @@ def init_db():
         remind_time TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
-    ''')
+    """
+    )
 
     conn.commit()
     conn.close()
 
     init_users_db()
+
 
 def seed_data():
     """
@@ -74,27 +86,47 @@ def seed_data():
     q_count = cur.fetchone()[0]
     if q_count == 0:
         questions_data = [
-            (1, "협업", "팀원과의 협업이 원활했나요?", "single_choice", "매우 그렇다, 그렇다, 아니다", "2025-01-14 08:46:08"),
-            (2, "태도", "다른 팀원이 도움이 필요한 경우 적극적으로 협조했나요?", "single_choice", "항상 그렇다, 가끔 그렇다, 거의 없다, 전혀 없다", "2025-01-14 08:46:08"),
+            (
+                1,
+                "협업",
+                "팀원과의 협업이 원활했나요?",
+                "single_choice",
+                "매우 그렇다, 그렇다, 아니다",
+                "2025-01-14 08:46:08",
+            ),
+            (
+                2,
+                "태도",
+                "다른 팀원이 도움이 필요한 경우 적극적으로 협조했나요?",
+                "single_choice",
+                "항상 그렇다, 가끔 그렇다, 거의 없다, 전혀 없다",
+                "2025-01-14 08:46:08",
+            ),
         ]
         for row in questions_data:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO feedback_questions (id, keyword, question_text, question_type, options, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, row)
+            """,
+                row,
+            )
 
     # feedback_results
     cur.execute("SELECT COUNT(*) FROM feedback_results")
     f_count = cur.fetchone()[0]
     if f_count == 0:
         feedback_data = [
-            (1, 1, 'user1', 'user2', '아니다', '2025-01-14 08:46:08'),
+            (1, 1, "user1", "user2", "아니다", "2025-01-14 08:46:08"),
         ]
         for row in feedback_data:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO feedback_results (id, question_id, from_username, to_username, answer_content, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, row)
+            """,
+                row,
+            )
 
     conn.commit()
     conn.close()
