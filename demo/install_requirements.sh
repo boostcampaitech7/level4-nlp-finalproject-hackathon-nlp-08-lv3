@@ -1,19 +1,34 @@
 #!/bin/bash
 
-# 통합 디렉토리에서 backend와 frontend의 requirements.txt 설치
+# Exit on any error
+set -e
 
-# backend requirements 설치
-if [ -f "./backend/requirements.txt" ]; then
-    echo "Installing backend requirements..."
-    pip install -r ./backend/requirements.txt
+echo "Starting installation process..."
+
+# Set timezone to Asia/Seoul
+echo "Setting timezone to Asia/Seoul..."
+ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+
+# Update package list
+echo "Updating package list..."
+apt-get update
+
+# Install system dependencies
+echo "Installing system dependencies..."
+apt-get install -y python3-pip fonts-nanum
+
+# Install Python packages
+echo "Installing Python packages from requirements.txt..."
+pip install -r requirements.txt
+
+# Verify font installation
+echo "Verifying font installation..."
+if [ -f "/usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf" ]; then
+    echo "NanumMyeongjo font is successfully installed!"
 else
-    echo "backend/requirements.txt 파일을 찾을 수 없습니다."
+    echo "Warning: NanumMyeongjo font file not found in expected location."
+    echo "You might need to install it manually from https://hangeul.naver.com/font"
+    exit 1
 fi
 
-# frontend requirements 설치
-if [ -f "./frontend/requirements.txt" ]; then
-    echo "Installing frontend requirements..."
-    pip install -r ./frontend/requirements.txt
-else
-    echo "frontend/requirements.txt 파일을 찾을 수 없습니다."
-fi
+echo "Installation completed successfully!"
