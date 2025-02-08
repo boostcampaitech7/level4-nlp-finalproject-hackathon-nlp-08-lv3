@@ -1,4 +1,5 @@
 # Level 4 - Upstage 해커톤: 인사를 부탁해
+<img width="374" alt="Image" src="https://github.com/user-attachments/assets/1c406613-6cd8-4f0a-99cf-f4c3406fadff"/>
 
 ## 📝 Abstract
 - [Wrap-Up Report](추가예정)
@@ -93,7 +94,8 @@
 <br>
 
 ## 🗓 Project Time Line
-> 2025.01.11.(금)-02.10.(월) (30일간)
+> 2025.01.03.(금)-02.10.(월)
+<img width="902" alt="Image" src="https://github.com/user-attachments/assets/8017c4fe-9f23-4675-9983-4906981b5fef" />
 
 <br>
 
