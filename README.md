@@ -112,7 +112,6 @@ chmod +x install_requirements.sh
 
 # 페르소나 데이터를 사용해보고 싶으시다면:
 mv demo/backend/db/persona_db/* demo/backend/db/
-cp 
 ```
 
 ### ⌨️ How To Run
