@@ -35,4 +35,9 @@ jobs:
     - name: Run tests
       working-directory: ./demo/backend
       run: |
+        # Copy database files and set up automatic cleanup
+        cp db/persona_db/*.db db/ || true
+        trap 'rm -f db/*.db' EXIT  # Ensures cleanup even if tests fail
+        
+        # Run pytest with verbose output
         python -m pytest test.py -v
