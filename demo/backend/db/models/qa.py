@@ -76,58 +76,12 @@ def init_db():
 
 def seed_data():
     """
-    최초 실행 시 예시 데이터 (이미 같은 id가 있다면 에러 날 수 있음)
+    최초 실행 시 데이터 초기화
     """
     conn = get_connection()
     cur = conn.cursor()
 
-    # feedback_questions
-    cur.execute("SELECT COUNT(*) FROM feedback_questions")
-    q_count = cur.fetchone()[0]
-    if q_count == 0:
-        questions_data = [
-            (
-                1,
-                "협업",
-                "팀원과의 협업이 원활했나요?",
-                "single_choice",
-                "매우 그렇다, 그렇다, 아니다",
-                "2025-01-14 08:46:08",
-            ),
-            (
-                2,
-                "태도",
-                "다른 팀원이 도움이 필요한 경우 적극적으로 협조했나요?",
-                "single_choice",
-                "항상 그렇다, 가끔 그렇다, 거의 없다, 전혀 없다",
-                "2025-01-14 08:46:08",
-            ),
-        ]
-        for row in questions_data:
-            cur.execute(
-                """
-                INSERT INTO feedback_questions (id, keyword, question_text, question_type, options, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                row,
-            )
-
-    # feedback_results
-    cur.execute("SELECT COUNT(*) FROM feedback_results")
-    f_count = cur.fetchone()[0]
-    if f_count == 0:
-        feedback_data = [
-            (1, 1, "user1", "user2", "아니다", "2025-01-14 08:46:08"),
-        ]
-        for row in feedback_data:
-            cur.execute(
-                """
-                INSERT INTO feedback_results (id, question_id, from_username, to_username, answer_content, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                row,
-            )
-
+    # feedback_questions와 feedback_results는 빈 상태로 시작
     conn.commit()
     conn.close()
 

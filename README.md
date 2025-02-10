@@ -22,12 +22,12 @@
 
 | 이름 | 역할 |
 | :---: | --- |
-| **`권지수`** | ** ** |
-| **`김성은`** | ** ** |
-| **`김태원`** | ** ** |
-| **`이다현`** | ** ** |
-| **`이한서`** | ** ** |
-| **`정주현`** | ** ** |
+| **`권지수`** | **보고서 레이아웃 디자인, 보고서-DB 연결, 한줄 소개 구현** |
+| **`김성은`** | **PM, 주제 구체화 및 UX/UI 기획, Frontend 가이드라인, 보고서 디자인 고도화** |
+| **`김태원`** | **Backend DB 구축, Github Action 배포** |
+| **`이다현`** | **피드백 익명화 기능 구현, 보고서 그래프 디자인** |
+| **`이한서`** | **PM, Backend 가이드라인, 리마인드 및 보고서 메일 발송 구현** |
+| **`정주현`** | **도서 추천 구현, 질문 자동 생성 구현, 부서 관리 기능 구현, Frontend UX/UI 개선** |
 
 <br>
 
@@ -61,6 +61,10 @@
  ┃ ┃ ┃ ┣ 📜pdf.py
  ┃ ┃ ┃ ┣ 📜qa.py
  ┃ ┃ ┃ ┗ ...
+ ┃ ┃ ┣ 📂persona_db
+ ┃ ┃ ┃ ┣ 📜feedback.db
+ ┃ ┃ ┃ ┣ 📜result.db
+ ┃ ┃ ┃ ┗ 📜user.db
  ┃ ┃ ┣ 📜__init__.py
  ┃ ┃ ┗ 📜file_uploads.db
  ┃ ┣ 📂mail_service
@@ -105,6 +109,9 @@
 ```bash
 chmod +x install_requirements.sh
 ./install_requirements.sh
+
+# 페르소나 데이터를 사용해보고 싶으시다면:
+mv demo/backend/db/persona_db/* demo/backend/db/
 ```
 
 ### ⌨️ How To Run
