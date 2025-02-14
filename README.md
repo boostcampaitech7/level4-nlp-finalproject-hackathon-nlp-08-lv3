@@ -2,7 +2,7 @@
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/3f560aa4-fde1-406d-9a8e-0f4a26d2a3eb"/>
 
 ## 📝 Abstract
-- [Wrap-Up Report](추가예정)
+- [Wrap-up Report](https://github.com/user-attachments/files/18794947/_NLP_.08.pdf)
 - 부스트캠프 AI Tech의 최종 프로젝트인 Upstage 해커톤으로, **AGI for Work - Upstage API를 이용한 AI 프로덕트 개발**을 주제로 하였다.
 
 <br>
